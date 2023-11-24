@@ -12,7 +12,7 @@ impl Plugin for FileDialogPlugin {
         app.init_resource::<FileDialog>();
         app.add_event::<FileLoadedEvent>();
         app.add_event::<FileSavedEvent>();
-        app.add_systems(Update, poll_dialog_result);
+        app.add_systems(PreUpdate, poll_dialog_result);
     }
 }
 
