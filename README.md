@@ -1,7 +1,7 @@
-# bevy_file_dialogs
+# bevy_file_dialog
 
-[![crates.io](https://img.shields.io/crates/v/bevy_file_dialogs)](https://crates.io/crates/bevy_file_dialogs)
-[![docs.rs](https://docs.rs/bevy_file_dialogs/badge.svg)](https://docs.rs/bevy_file_dialogs)
+[![crates.io](https://img.shields.io/crates/v/bevy_file_dialog)](https://crates.io/crates/bevy_file_dialog)
+[![docs.rs](https://docs.rs/bevy_file_dialog/badge.svg)](https://docs.rs/bevy_file_dialog)
 
 A plugin for loading and saving files using system dialogs for the Bevy game engine.
 
