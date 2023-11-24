@@ -1,0 +1,15 @@
+[package]
+name = "bevy_file_dialog"
+version = "0.1.0"
+edition = "2021"
+authors = ["Richard Hozák"]
+description = "File system dialogs for loading and saving files using the Bevy game engine"
+homepage = "https://github.com/richardhozak/bevy_file_dialog"
+keywords = ["bevy", "gamedev", "file", "dialog"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/richardhozak/bevy_file_dialog"
+
+[dependencies]
+futures-lite = "2.0"
+rfd = { version = "0.12", default-features = false, features = ["xdg-portal"] }
+bevy = { version = "0.12", default_features = false, features = ["multi-threaded"] }
