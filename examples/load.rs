@@ -6,6 +6,8 @@ use bevy_file_dialog::{FileDialog, FileDialogPlugin, FileLoadedEvent};
 fn main() {
     App::new()
         .add_plugins(
+            // run the schedule forever, there is no window, so the app would
+            // terminate after one loop and we would not get file events
             MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(0.1))),
         )
         // Add the file dialog plugin
