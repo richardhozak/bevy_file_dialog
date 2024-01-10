@@ -3,7 +3,7 @@ use std::io;
 use bevy::prelude::*;
 use bevy::tasks::{AsyncComputeTaskPool, Task};
 use futures_lite::future;
-use rfd::{AsyncFileDialog, FileHandle};
+use rfd::AsyncFileDialog;
 
 /// Add this plugin to Bevy App to use the `FileDialog` resource in your system
 /// to save/load files.
@@ -53,8 +53,17 @@ impl FileDialog {
             panic!("Cannot save more than one file at once");
         }
 
-        let task = AsyncComputeTaskPool::get().spawn(AsyncFileDialog::new().save_file());
-        self.state = Some(FileDialogState::Opening(task, DialogKind::Save(contents)));
+        let task = AsyncComputeTaskPool::get().spawn(async move {
+            let file = AsyncFileDialog::new().save_file().await;
+
+            if let Some(file) = file {
+                Some((file.file_name(), file.write(&contents).await))
+            } else {
+                None
+            }
+        });
+
+        self.state = Some(FileDialogState::Saving(task));
     }
 
     /// Open pick file dialog and load its contents. When file contents get
@@ -65,20 +74,23 @@ impl FileDialog {
             panic!("Cannot save more than one file at once");
         }
 
-        let task = AsyncComputeTaskPool::get().spawn(AsyncFileDialog::new().pick_file());
-        self.state = Some(FileDialogState::Opening(task, DialogKind::Load));
+        let task = AsyncComputeTaskPool::get().spawn(async move {
+            let file = AsyncFileDialog::new().pick_file().await;
+
+            if let Some(file) = file {
+                Some((file.file_name(), file.read().await))
+            } else {
+                None
+            }
+        });
+
+        self.state = Some(FileDialogState::Loading(task));
     }
 }
 
-enum DialogKind {
-    Save(Vec<u8>),
-    Load,
-}
-
 enum FileDialogState {
-    Opening(Task<Option<FileHandle>>, DialogKind),
-    Saving(Task<io::Result<()>>, String),
-    Loading(Task<Vec<u8>>, String),
+    Saving(Task<Option<(String, io::Result<()>)>>),
+    Loading(Task<Option<(String, Vec<u8>)>>),
 }
 
 fn poll_dialog_result(
@@ -88,53 +100,33 @@ fn poll_dialog_result(
 ) {
     dialog.state = match dialog.state.take() {
         Some(state) => match state {
-            FileDialogState::Opening(mut task, kind) => {
+            FileDialogState::Saving(mut task) => {
                 if let Some(result) = future::block_on(future::poll_once(&mut task)) {
-                    match result {
-                        Some(file_handle) => match kind {
-                            DialogKind::Save(contents) => {
-                                let file_name = file_handle.file_name();
-                                Some(FileDialogState::Saving(
-                                    AsyncComputeTaskPool::get()
-                                        .spawn(async move { file_handle.write(&contents).await }),
-                                    file_name,
-                                ))
-                            }
-                            DialogKind::Load => {
-                                let file_name = file_handle.file_name();
-                                Some(FileDialogState::Loading(
-                                    AsyncComputeTaskPool::get()
-                                        .spawn(async move { file_handle.read().await }),
-                                    file_name,
-                                ))
-                            }
-                        },
-                        None => {
-                            // user closed the dialog
-                            None
-                        }
+                    if let Some((file_name, result)) = result {
+                        ev_saved.send(FileSavedEvent { file_name, result });
+                        None
+                    } else {
+                        info!("Save dialog closed");
+                        None
                     }
                 } else {
-                    Some(FileDialogState::Opening(task, kind))
+                    Some(FileDialogState::Saving(task))
                 }
             }
-            FileDialogState::Saving(mut task, file_name) => {
+            FileDialogState::Loading(mut task) => {
                 if let Some(result) = future::block_on(future::poll_once(&mut task)) {
-                    ev_saved.send(FileSavedEvent { file_name, result });
-                    None
+                    if let Some((file_name, contents)) = result {
+                        ev_loaded.send(FileLoadedEvent {
+                            file_name,
+                            contents,
+                        });
+                        None
+                    } else {
+                        info!("Load dialog closed");
+                        None
+                    }
                 } else {
-                    Some(FileDialogState::Saving(task, file_name))
-                }
-            }
-            FileDialogState::Loading(mut task, file_name) => {
-                if let Some(contents) = future::block_on(future::poll_once(&mut task)) {
-                    ev_loaded.send(FileLoadedEvent {
-                        file_name,
-                        contents,
-                    });
-                    None
-                } else {
-                    Some(FileDialogState::Loading(task, file_name))
+                    Some(FileDialogState::Loading(task))
                 }
             }
         },
