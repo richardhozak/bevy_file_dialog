@@ -1,3 +1,92 @@
+#![warn(missing_docs)]
+
+//! Bevy plugin that allows you to save and load files with file dialogs.
+//!
+//! In order to use it you need to add [`FileDialogPlugin`] with one or more calls
+//! to [`FileDialogPlugin::with_save`] or [`FileDialogPlugin::with_load`]:
+//!
+//! Here is a complete example showing all the features of the plugin:
+//! ```rust
+//! use bevy::prelude::*;
+//! use bevy_file_dialog::prelude::*;
+//!
+//! struct LevelContents;
+//! struct SaveGameContents;
+//!
+//! fn main() {
+//!     App::new()
+//!            .add_plugins(DefaultPlugins)
+//!            // Add the file dialog plugin and specify that we want to load `LevelContents`
+//!            // and save and load `SaveGameContents`
+//!            .add_plugins(
+//!                 FileDialogPlugin::new()
+//!                     .with_load::<LevelContents>()
+//!                     .with_save::<SaveGameContents>()
+//!                     .with_load::<SaveGameContents>()
+//!             )
+//!            .add_systems(PreUpdate, handle_input)
+//!            .add_systems(
+//!                 Update,
+//!                 (
+//!                     level_contents_loaded,
+//!                     save_game_contents_loaded,
+//!                     save_game_contents_saved
+//!                 )
+//!            )
+//!            .run();
+//! }
+//!
+//! fn level_contents_loaded(mut ev_level_contents: EventReader<DialogFileLoaded<LevelContents>>) {
+//!     for event in ev_loaded.read() {
+//!         eprintln!("Loaded level {} with size of {} bytes", event.file_name, event.contents.len());
+//!         // You can now deserialize the bytes contained in event.contents into a level
+//!     }
+//! }
+//!
+//! fn save_game_contents_loaded(mut ev_level_contents: EventReader<DialogFileLoaded<LevelContents>>) {
+//!     for event in ev_loaded.read() {
+//!         eprintln!("Loaded save game {} with size of {} bytes", event.file_name, event.contents.len());
+//!         // You can now deserialize the bytes contained in event.contents into a save game
+//!     }
+//! }
+//!
+//! fn save_game_contents_saved(mut ev_level_contents: EventReader<DialogFileSaved<LevelContents>>) {
+//!     for event in ev_loaded.read() {
+//!         eprintln!("Loaded save game {} with result {:?}", event.file_name, event.result);
+//!         // You can inspect event.result and show player the result of saving a game
+//!     }
+//! }
+//!
+//! fn handle_input(mut commands: Commands, input: Res<Input<KeyCode>>) {
+//!     if input.just_pressed(KeyCode::L) {
+//!         commands
+//!             .dialog()
+//!             .add_filter("level", &["level", "lvl"])
+//!             .set_title("Load level")
+//!             .load_file::<LevelContents>();
+//!     } else if input.just_pressed(KeyCode::S) {
+//!         let save_game_content = Vec::new(); // You'd serialize your save game to bytes here instead of Vec::new()
+//!
+//!         commands
+//!             .dialog()
+//!             .set_directory("/")
+//!             .set_title("Save game")
+//!             .save_file::<SaveGameContents>(save_game_content);
+//!     } else if input.just_pressed(KeyCode::O) {
+//!         commands
+//!             .dialog()
+//!             .set_directory("/")
+//!             .set_title("Load game")
+//!             .load_file::<SaveGameContents>();
+//!     }
+//! }
+//! ```
+//!
+//! [`FileDialogPlugin::with_save`] and [`FileDialogPlugin::with_load`] can be
+//! called as many times as you want, the type parameters act as markers that
+//! allow you to call [`FileDialog::save_file`] and [`FileDialog::load_file`] and
+//! receive the result in [`DialogFileSaved`] and [`DialogFileLoaded`] events.
+
 use std::io;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
@@ -21,7 +110,10 @@ pub struct FileDialogPlugin(Vec<RegisterAction>);
 
 type RegisterAction = Box<dyn Fn(&mut App) + Send + Sync + 'static>;
 
+/// Marker trait saying that data can be saved to file.
 pub trait SaveContents: Send + Sync + 'static {}
+
+/// Marker trait saying that data can be loaded from file
 pub trait LoadContents: Send + Sync + 'static {}
 
 impl<T> SaveContents for T where T: Send + Sync + 'static {}
@@ -29,10 +121,17 @@ impl<T> SaveContents for T where T: Send + Sync + 'static {}
 impl<T> LoadContents for T where T: Send + Sync + 'static {}
 
 impl FileDialogPlugin {
+    /// Create new file dialog plugin. Do not forget to call at least one
+    /// `with_save` or `with_load` on the plugin to allow you to save/load
+    /// files.
     pub fn new() -> Self {
         Default::default()
     }
 
+    /// Allow saving file contents. This allows you to call
+    ///  `dialog().save_file::<T>()` on [`Commands`]. For each `with_save` you
+    /// will receive [`DialogFileSaved<T>`] in your systems when `save_file`
+    /// completes.
     pub fn with_save<T: SaveContents>(mut self) -> Self {
         self.0.push(Box::new(|app| {
             app.add_event::<DialogFileSaved<T>>();
@@ -44,6 +143,10 @@ impl FileDialogPlugin {
         self
     }
 
+    /// Allow loading file contents. This allows you to call
+    ///  `dialog().load_file::<T>()` on [`Commands`]. For each `with_load` you
+    /// will receive [`DialogFileLoaded<T>`] in your systems when `load_file`
+    /// completes.
     pub fn with_load<T: LoadContents>(mut self) -> Self {
         self.0.push(Box::new(|app| {
             app.add_event::<DialogFileLoaded<T>>();
@@ -109,7 +212,6 @@ struct SaveDialog<T: SaveContents> {
 }
 
 /// Event that gets sent when file contents get saved to file system.
-/// TODO: more docs
 #[derive(Event)]
 pub struct DialogFileSaved<T: SaveContents> {
     /// Name of saved file.
@@ -122,7 +224,6 @@ pub struct DialogFileSaved<T: SaveContents> {
 }
 
 /// Event that gets sent when file contents get loaded from file system.
-/// TODO: more docs
 #[derive(Event)]
 pub struct DialogFileLoaded<T: LoadContents> {
     /// Name of loaded file.
@@ -144,7 +245,9 @@ impl Plugin for FileDialogPlugin {
     }
 }
 
-pub struct Dialog<'w, 's, 'a> {
+/// File dialog for saving/loading files. You can further customize what can be
+/// saved/loaded and the initial state of dialog with its functions.
+pub struct FileDialog<'w, 's, 'a> {
     commands: &'a mut Commands<'w, 's>,
     filters: Vec<(String, Vec<String>)>,
     starting_directory: Option<PathBuf>,
@@ -152,7 +255,7 @@ pub struct Dialog<'w, 's, 'a> {
     title: Option<String>,
 }
 
-impl<'w, 's, 'a> Dialog<'w, 's, 'a> {
+impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
     /// Add file extension filter.
     ///
     /// Takes in the name of the filter, and list of extensions
@@ -206,7 +309,6 @@ impl<'w, 's, 'a> Dialog<'w, 's, 'a> {
     /// Open save file dialog and save the `contents` to that file. When file
     /// gets saved, the [`DialogFileSaved<T>`] gets sent. You can get read this event
     /// with Bevy's [`EventReader<DialogFileSaved<T>>`] system param.
-    /// TODO: more examples
     pub fn save_file<T: SaveContents>(self, contents: Vec<u8>) {
         self.commands.add(|world: &mut World| {
             let task = AsyncComputeTaskPool::get().spawn(async move {
@@ -229,7 +331,6 @@ impl<'w, 's, 'a> Dialog<'w, 's, 'a> {
     /// Open pick file dialog and load its contents. When file contents get
     /// loaded, the [`DialogFileLoaded<T>`] gets sent. You can read this event with
     /// Bevy's [`EventReader<DialogFileLoaded<T>>`].
-    /// TODO: more examples
     pub fn load_file<T: LoadContents>(self) {
         self.commands.add(|world: &mut World| {
             let task = AsyncComputeTaskPool::get().spawn(async move {
@@ -250,14 +351,16 @@ impl<'w, 's, 'a> Dialog<'w, 's, 'a> {
     }
 }
 
+/// Extension trait for [`Commands`] that allow you to create dialogs.
 pub trait FileDialogExt<'w, 's> {
+    /// Create dialog for loading/saving files.
     #[must_use]
-    fn dialog<'a>(&'a mut self) -> Dialog<'w, 's, 'a>;
+    fn dialog<'a>(&'a mut self) -> FileDialog<'w, 's, 'a>;
 }
 
 impl<'w, 's> FileDialogExt<'w, 's> for Commands<'w, 's> {
-    fn dialog<'a>(&'a mut self) -> Dialog<'w, 's, 'a> {
-        Dialog {
+    fn dialog<'a>(&'a mut self) -> FileDialog<'w, 's, 'a> {
+        FileDialog {
             commands: self,
             filters: Vec::new(),
             starting_directory: None,

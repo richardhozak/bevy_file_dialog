@@ -11,7 +11,7 @@ fn main() {
             MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(0.1))),
         )
         .add_plugins(LogPlugin::default())
-        // Add the file dialog plugin, and specify that we want to save `MyContents`
+        // Add the file dialog plugin and specify that we want to save `MyContents`
         .add_plugins(FileDialogPlugin::new().with_save::<MyContents>())
         .add_systems(Startup, save)
         .add_systems(Update, file_saved)

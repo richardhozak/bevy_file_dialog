@@ -27,7 +27,7 @@ fn load(mut commands: Commands) {
 fn file_loaded(mut ev_loaded: EventReader<DialogFileLoaded<MyContents>>) {
     for ev in ev_loaded.read() {
         eprintln!(
-            "Loaded file {} with size of {:?} bytes",
+            "Loaded file {} with size of {} bytes",
             ev.file_name,
             ev.contents.len()
         );
