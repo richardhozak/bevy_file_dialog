@@ -77,9 +77,9 @@ pub mod prelude {
 /// Add this plugin to Bevy App to use the `FileDialog` resource in your system
 /// to save/load files.
 #[derive(Default)]
-pub struct FileDialogPlugin(Vec<RegisterAction>);
+pub struct FileDialogPlugin(Vec<RegisterIntent>);
 
-type RegisterAction = Box<dyn Fn(&mut App) + Send + Sync + 'static>;
+type RegisterIntent = Box<dyn Fn(&mut App) + Send + Sync + 'static>;
 
 /// Marker trait saying that data can be saved to file.
 pub trait SaveContents: Send + Sync + 'static {}
