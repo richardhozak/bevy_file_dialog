@@ -16,12 +16,19 @@ pub struct FileDialogPlugin(Vec<RegisterAction>);
 
 type RegisterAction = Box<dyn Fn(&mut App) + Send + Sync + 'static>;
 
+pub trait SaveContents: Send + Sync + 'static {}
+pub trait LoadContents: Send + Sync + 'static {}
+
+impl<T> SaveContents for T where T: Send + Sync + 'static {}
+
+impl<T> LoadContents for T where T: Send + Sync + 'static {}
+
 impl FileDialogPlugin {
     pub fn new() -> Self {
         Default::default()
     }
 
-    pub fn with_save<T: Send + Sync + 'static>(mut self) -> Self {
+    pub fn with_save<T: SaveContents>(mut self) -> Self {
         self.0.push(Box::new(|app| {
             app.add_event::<DialogFileSaved<T>>();
             app.add_systems(
@@ -32,7 +39,7 @@ impl FileDialogPlugin {
         self
     }
 
-    pub fn with_load<T: Send + Sync + 'static>(mut self) -> Self {
+    pub fn with_load<T: LoadContents>(mut self) -> Self {
         self.0.push(Box::new(|app| {
             app.add_event::<DialogFileLoaded<T>>();
             app.add_systems(
@@ -44,7 +51,7 @@ impl FileDialogPlugin {
     }
 }
 
-fn poll_load_dialog_result<T: Send + Sync + 'static>(
+fn poll_load_dialog_result<T: LoadContents>(
     mut commands: Commands,
     mut dialog: ResMut<LoadDialog<T>>,
     mut ev_saved: EventWriter<DialogFileLoaded<T>>,
@@ -64,7 +71,7 @@ fn poll_load_dialog_result<T: Send + Sync + 'static>(
     }
 }
 
-fn poll_save_dialog_result<T: Send + Sync + 'static>(
+fn poll_save_dialog_result<T: SaveContents>(
     mut commands: Commands,
     mut dialog: ResMut<SaveDialog<T>>,
     mut ev_saved: EventWriter<DialogFileSaved<T>>,
@@ -85,13 +92,13 @@ fn poll_save_dialog_result<T: Send + Sync + 'static>(
 }
 
 #[derive(Resource)]
-struct LoadDialog<T: Send + Sync + 'static> {
+struct LoadDialog<T: LoadContents> {
     task: Task<Option<(String, Vec<u8>)>>,
     marker: PhantomData<T>,
 }
 
 #[derive(Resource)]
-struct SaveDialog<T: Send + Sync + 'static> {
+struct SaveDialog<T: SaveContents> {
     task: Task<Option<(String, Result<(), io::Error>)>>,
     marker: PhantomData<T>,
 }
@@ -99,7 +106,7 @@ struct SaveDialog<T: Send + Sync + 'static> {
 /// Event that gets sent when file contents get saved to file system.
 /// TODO: more docs
 #[derive(Event)]
-pub struct DialogFileSaved<T: Send + Sync + 'static> {
+pub struct DialogFileSaved<T: SaveContents> {
     /// Name of saved file.
     pub file_name: String,
 
@@ -112,7 +119,7 @@ pub struct DialogFileSaved<T: Send + Sync + 'static> {
 /// Event that gets sent when file contents get loaded from file system.
 /// TODO: more docs
 #[derive(Event)]
-pub struct DialogFileLoaded<T: Send + Sync + 'static> {
+pub struct DialogFileLoaded<T: LoadContents> {
     /// Name of loaded file.
     pub file_name: String,
 
@@ -195,7 +202,7 @@ impl<'w, 's, 'a> Dialog<'w, 's, 'a> {
     /// gets saved, the [`DialogFileSaved<T>`] gets sent. You can get read this event
     /// with Bevy's [`EventReader<DialogFileSaved<T>>`] system param.
     /// TODO: more examples
-    pub fn save_file<T: Send + Sync + 'static>(self, contents: Vec<u8>) {
+    pub fn save_file<T: SaveContents>(self, contents: Vec<u8>) {
         self.commands.add(|world: &mut World| {
             let task = AsyncComputeTaskPool::get().spawn(async move {
                 let file = AsyncFileDialog::new().save_file().await;
@@ -218,7 +225,7 @@ impl<'w, 's, 'a> Dialog<'w, 's, 'a> {
     /// loaded, the [`DialogFileLoaded<T>`] gets sent. You can read this event with
     /// Bevy's [`EventReader<DialogFileLoaded<T>>`].
     /// TODO: more examples
-    pub fn load_file<T: Send + Sync + 'static>(self) {
+    pub fn load_file<T: LoadContents>(self) {
         self.commands.add(|world: &mut World| {
             let task = AsyncComputeTaskPool::get().spawn(async move {
                 let file = AsyncFileDialog::new().pick_file().await;
