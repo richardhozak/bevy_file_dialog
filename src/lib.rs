@@ -9,6 +9,11 @@ use bevy_utils::tracing::*;
 use futures_lite::future;
 use rfd::AsyncFileDialog;
 
+pub mod prelude {
+    //! Prelude containing all types you need for saving/loading files with dialogs.
+    pub use crate::{DialogFileLoaded, DialogFileSaved, FileDialogExt, FileDialogPlugin};
+}
+
 /// Add this plugin to Bevy App to use the `FileDialog` resource in your system
 /// to save/load files.
 #[derive(Default)]

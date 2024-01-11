@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use bevy::{app::ScheduleRunnerPlugin, log::LogPlugin, prelude::*};
-use bevy_file_dialog::{DialogFileLoaded, FileDialogExt, FileDialogPlugin};
+use bevy_file_dialog::prelude::*;
 
 fn main() {
     App::new()
