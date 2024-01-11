@@ -131,10 +131,13 @@ mod pick;
 
 pub mod prelude {
     //! Prelude containing all types you need for saving/loading files with dialogs.
-    pub use crate::{DialogFileLoaded, DialogFileSaved, FileDialogExt, FileDialogPlugin};
+    pub use crate::{
+        DialogFileLoadCanceled, DialogFileLoaded, DialogFileSaveCanceled, DialogFileSaved,
+        FileDialogExt, FileDialogPlugin,
+    };
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub use crate::pick::DialogDirectoryPathPicked;
+    pub use crate::pick::{DialogDirectoryPathPickCanceled, DialogDirectoryPathPicked};
 }
 
 /// Add this plugin to Bevy App to use the `FileDialog` resource in your system
@@ -169,6 +172,7 @@ impl FileDialogPlugin {
     pub fn with_save_file<T: SaveContents>(mut self) -> Self {
         self.0.push(Box::new(|app| {
             app.add_event::<DialogFileSaved<T>>();
+            app.add_event::<DialogFileSaveCanceled<T>>();
             app.add_systems(
                 First,
                 poll_save_dialog_result::<T>.run_if(resource_exists::<SaveDialog<T>>()),
@@ -184,6 +188,7 @@ impl FileDialogPlugin {
     pub fn with_load_file<T: LoadContents>(mut self) -> Self {
         self.0.push(Box::new(|app| {
             app.add_event::<DialogFileLoaded<T>>();
+            app.add_event::<DialogFileLoadCanceled<T>>();
             app.add_systems(
                 First,
                 (
@@ -201,6 +206,7 @@ fn poll_load_multiple_dialog_result<T: LoadContents>(
     mut commands: Commands,
     mut dialog: ResMut<LoadMultipleDialog<T>>,
     mut ev_saved: EventWriter<DialogFileLoaded<T>>,
+    mut ev_canceled: EventWriter<DialogFileLoadCanceled<T>>,
 ) {
     if let Some(result) = future::block_on(future::poll_once(&mut dialog.task)) {
         if let Some(file_contents) = result {
@@ -212,7 +218,7 @@ fn poll_load_multiple_dialog_result<T: LoadContents>(
                 }
             }));
         } else {
-            info!("Load multiple dialog closed");
+            ev_canceled.send(DialogFileLoadCanceled(PhantomData));
         }
 
         commands.remove_resource::<LoadMultipleDialog<T>>();
@@ -223,6 +229,7 @@ fn poll_load_dialog_result<T: LoadContents>(
     mut commands: Commands,
     mut dialog: ResMut<LoadDialog<T>>,
     mut ev_saved: EventWriter<DialogFileLoaded<T>>,
+    mut ev_canceled: EventWriter<DialogFileLoadCanceled<T>>,
 ) {
     if let Some(result) = future::block_on(future::poll_once(&mut dialog.task)) {
         if let Some((file_name, contents)) = result {
@@ -232,7 +239,7 @@ fn poll_load_dialog_result<T: LoadContents>(
                 marker: PhantomData,
             });
         } else {
-            info!("Load dialog closed");
+            ev_canceled.send(DialogFileLoadCanceled(PhantomData));
         }
 
         commands.remove_resource::<LoadDialog<T>>();
@@ -243,6 +250,7 @@ fn poll_save_dialog_result<T: SaveContents>(
     mut commands: Commands,
     mut dialog: ResMut<SaveDialog<T>>,
     mut ev_saved: EventWriter<DialogFileSaved<T>>,
+    mut ev_canceled: EventWriter<DialogFileSaveCanceled<T>>,
 ) {
     if let Some(result) = future::block_on(future::poll_once(&mut dialog.task)) {
         if let Some((file_name, result)) = result {
@@ -252,7 +260,7 @@ fn poll_save_dialog_result<T: SaveContents>(
                 marker: PhantomData,
             });
         } else {
-            info!("Save dialog closed");
+            ev_canceled.send(DialogFileSaveCanceled(PhantomData));
         }
 
         commands.remove_resource::<SaveDialog<T>>();
@@ -300,6 +308,14 @@ pub struct DialogFileLoaded<T: LoadContents> {
 
     marker: PhantomData<T>,
 }
+
+/// Event that gets sent when user closes file load dialog without picking any file.
+#[derive(Event)]
+pub struct DialogFileLoadCanceled<T: LoadContents>(PhantomData<T>);
+
+/// Event that gets sent when user closes file save dialog without saving any file.
+#[derive(Event)]
+pub struct DialogFileSaveCanceled<T: SaveContents>(PhantomData<T>);
 
 impl Plugin for FileDialogPlugin {
     fn build(&self, app: &mut App) {

@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
 use bevy_tasks::{prelude::*, Task};
-use bevy_utils::tracing::*;
 use futures_lite::future;
 use rfd::AsyncFileDialog;
 
@@ -18,6 +17,10 @@ pub struct DialogDirectoryPathPicked<T: PickDirectoryPath> {
 
     marker: PhantomData<T>,
 }
+
+/// Event that gets sent when user closes pick directory dialog without picking any directory.
+#[derive(Event)]
+pub struct DialogDirectoryPathPickCanceled<T: PickDirectoryPath>(PhantomData<T>);
 
 /// Marker trait saying that data can be loaded from file
 pub trait PickDirectoryPath: Send + Sync + 'static {}
@@ -35,6 +38,7 @@ impl FileDialogPlugin {
     pub fn with_pick_directory<T: PickDirectoryPath>(mut self) -> Self {
         self.0.push(Box::new(|app| {
             app.add_event::<DialogDirectoryPathPicked<T>>();
+            app.add_event::<DialogDirectoryPathPickCanceled<T>>();
             app.add_systems(
                 First,
                 (
@@ -53,6 +57,7 @@ fn poll_pick_directory_path_dialog_result<T: PickDirectoryPath>(
     mut commands: Commands,
     mut dialog: ResMut<PickDirectoryPathDialog<T>>,
     mut ev_saved: EventWriter<DialogDirectoryPathPicked<T>>,
+    mut ev_canceled: EventWriter<DialogDirectoryPathPickCanceled<T>>,
 ) {
     if let Some(result) = future::block_on(future::poll_once(&mut dialog.task)) {
         if let Some(path) = result {
@@ -61,7 +66,7 @@ fn poll_pick_directory_path_dialog_result<T: PickDirectoryPath>(
                 marker: PhantomData,
             });
         } else {
-            info!("Pick directory dialog closed");
+            ev_canceled.send(DialogDirectoryPathPickCanceled(PhantomData));
         }
 
         commands.remove_resource::<PickDirectoryPathDialog<T>>();
@@ -72,6 +77,7 @@ fn poll_pick_multiple_directory_paths_dialog_result<T: PickDirectoryPath>(
     mut commands: Commands,
     mut dialog: ResMut<PickMultipleDirectoryPathsDialog<T>>,
     mut ev_saved: EventWriter<DialogDirectoryPathPicked<T>>,
+    mut ev_canceled: EventWriter<DialogDirectoryPathPickCanceled<T>>,
 ) {
     if let Some(result) = future::block_on(future::poll_once(&mut dialog.task)) {
         if let Some(paths) = result {
@@ -80,7 +86,7 @@ fn poll_pick_multiple_directory_paths_dialog_result<T: PickDirectoryPath>(
                 marker: PhantomData,
             }));
         } else {
-            info!("Pick directory dialog closed");
+            ev_canceled.send(DialogDirectoryPathPickCanceled(PhantomData));
         }
 
         commands.remove_resource::<PickMultipleDirectoryPathsDialog<T>>();
