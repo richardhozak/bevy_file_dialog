@@ -172,7 +172,7 @@ fn poll_load_dialog_result<T: LoadContents>(
                 marker: PhantomData,
             });
         } else {
-            info!("Save dialog closed");
+            info!("Load dialog closed");
         }
 
         commands.remove_resource::<LoadDialog<T>>();
