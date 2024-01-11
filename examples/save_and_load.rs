@@ -15,7 +15,16 @@ fn main() {
                 .with_load_file::<TextFileContents>(),
         )
         .add_systems(Startup, setup)
-        .add_systems(Update, (dialog, file_loaded, file_saved))
+        .add_systems(
+            Update,
+            (
+                dialog,
+                file_loaded,
+                file_saved,
+                file_load_canceled,
+                file_save_canceled,
+            ),
+        )
         .run();
 }
 
@@ -54,11 +63,23 @@ fn file_loaded(mut ev_loaded: EventReader<DialogFileLoaded<TextFileContents>>) {
     }
 }
 
+fn file_load_canceled(mut ev_canceled: EventReader<DialogFileLoadCanceled<TextFileContents>>) {
+    for _ in ev_canceled.read() {
+        eprintln!("Text file content load canceled");
+    }
+}
+
 fn file_saved(mut ev_saved: EventReader<DialogFileSaved<TextFileContents>>) {
     for ev in ev_saved.read() {
         match ev.result {
             Ok(_) => eprintln!("File {} successfully saved", ev.file_name),
             Err(ref err) => eprintln!("Failed to save {}: {}", ev.file_name, err),
         }
+    }
+}
+
+fn file_save_canceled(mut ev_canceled: EventReader<DialogFileSaveCanceled<TextFileContents>>) {
+    for _ in ev_canceled.read() {
+        eprintln!("Text file content save canceled");
     }
 }
