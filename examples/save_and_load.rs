@@ -10,9 +10,9 @@ fn main() {
         .add_plugins(
             FileDialogPlugin::new()
                 // allow saving of files marked with TextFileContents
-                .with_save::<TextFileContents>()
+                .with_save_file::<TextFileContents>()
                 // allow loading of files marked with TextFileContents
-                .with_load::<TextFileContents>(),
+                .with_load_file::<TextFileContents>(),
         )
         .add_systems(Startup, setup)
         .add_systems(Update, (dialog, file_loaded, file_saved))

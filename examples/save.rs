@@ -6,7 +6,7 @@ fn main() {
         .add_plugins(MinimalPlugins)
         .add_plugins(LogPlugin::default())
         // Add the file dialog plugin and specify that we want to save `ByteContents`
-        .add_plugins(FileDialogPlugin::new().with_save::<ByteContents>())
+        .add_plugins(FileDialogPlugin::new().with_save_file::<ByteContents>())
         .add_systems(Startup, save)
         .add_systems(Update, file_saved)
         .run();

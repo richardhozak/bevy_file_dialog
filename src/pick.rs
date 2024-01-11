@@ -28,11 +28,11 @@ impl FileDialogPlugin {
     /// Allow picking directory paths. This allows you to call
     /// [`FileDialog::pick_directory_path`] and
     /// [`FileDialog::pick_multiple_directory_paths`] on [`Commands`]. For each
-    /// `with_pick` you will receive [`DialogDirectoryPathPicked<T>`] in your
+    /// `with_pick_directory` you will receive [`DialogDirectoryPathPicked<T>`] in your
     /// systems when picking completes.
     ///
     /// Does not exist in `WASM32`.
-    pub fn with_pick<T: PickDirectoryPath>(mut self) -> Self {
+    pub fn with_pick_directory<T: PickDirectoryPath>(mut self) -> Self {
         self.0.push(Box::new(|app| {
             app.add_event::<DialogDirectoryPathPicked<T>>();
             app.add_systems(

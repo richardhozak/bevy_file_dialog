@@ -3,8 +3,8 @@
 //! Bevy plugin that allows you to save and load files with file dialogs.
 //!
 //! In order to use it you need to add [`FileDialogPlugin`] with one or more
-//! calls to [`FileDialogPlugin::with_save`], [`FileDialogPlugin::with_load`] or
-//! [`FileDialogPlugin::with_pick`]:
+//! calls to [`FileDialogPlugin::with_save_file`], [`FileDialogPlugin::with_load_file`] or
+//! [`FileDialogPlugin::with_pick_directory`]:
 //!
 //! Here is a complete example showing all the features of the plugin:
 //! ```rust
@@ -21,9 +21,9 @@
 //!            // and save and load `SaveGameContents`
 //!            .add_plugins(
 //!                 FileDialogPlugin::new()
-//!                     .with_load::<LevelContents>()
-//!                     .with_save::<SaveGameContents>()
-//!                     .with_load::<SaveGameContents>()
+//!                     .with_load_file::<LevelContents>()
+//!                     .with_save_file::<SaveGameContents>()
+//!                     .with_load_file::<SaveGameContents>()
 //!             )
 //!            .add_systems(PreUpdate, handle_input)
 //!            .add_systems(
@@ -83,20 +83,20 @@
 //! }
 //! ```
 //! The functions:
-//! - [`FileDialogPlugin::with_save::<T>`]
-//! - [`FileDialogPlugin::with_load::<T>`]
-//! - [`FileDialogPlugin::with_pick::<T>`]
+//! - [`FileDialogPlugin::with_save_file::<T>`]
+//! - [`FileDialogPlugin::with_load_file::<T>`]
+//! - [`FileDialogPlugin::with_pick_directory::<T>`]
 //!
 //! can be called as many times as you want, the type parameter acts as marker
 //! that allows you to call:
 //! - [`FileDialog::save_file`]
-//!   - for [`FileDialogPlugin::with_save::<T>`]
+//!   - for [`FileDialogPlugin::with_save_file::<T>`]
 //! - [`FileDialog::load_file`]
 //! - [`FileDialog::load_multiple_files`]
-//!   - for [`FileDialogPlugin::with_load::<T>`]
+//!   - for [`FileDialogPlugin::with_load_file::<T>`]
 //! - [`FileDialog::pick_directory_path`]
 //! - [`FileDialog::pick_multiple_directory_paths`]
-//!   - for [`FileDialogPlugin::with_pick::<T>`]
+//!   - for [`FileDialogPlugin::with_pick_directory::<T>`]
 //!
 //! with same type marker and then receive the result in
 //! - [`DialogFileSaved`] ([`EventReader<DialogFileSaved<T>>`])
@@ -156,17 +156,17 @@ impl<T> LoadContents for T where T: Send + Sync + 'static {}
 
 impl FileDialogPlugin {
     /// Create new file dialog plugin. Do not forget to call at least one
-    /// `with_save`, `with_load` or `with_pick` on the plugin to allow you to
+    /// `with_save_file`, `with_load_file` or `with_pick_directory` on the plugin to allow you to
     /// save/load files and pick directories.
     pub fn new() -> Self {
         Default::default()
     }
 
     /// Allow saving file contents. This allows you to call
-    ///  `dialog().save_file::<T>()` on [`Commands`]. For each `with_save` you
+    ///  `dialog().save_file::<T>()` on [`Commands`]. For each `with_save_file` you
     /// will receive [`DialogFileSaved<T>`] in your systems when `save_file`
     /// completes.
-    pub fn with_save<T: SaveContents>(mut self) -> Self {
+    pub fn with_save_file<T: SaveContents>(mut self) -> Self {
         self.0.push(Box::new(|app| {
             app.add_event::<DialogFileSaved<T>>();
             app.add_systems(
@@ -178,10 +178,10 @@ impl FileDialogPlugin {
     }
 
     /// Allow loading file contents. This allows you to call
-    ///  `dialog().load_file::<T>()` on [`Commands`]. For each `with_load` you
+    ///  `dialog().load_file::<T>()` on [`Commands`]. For each `with_load_file` you
     /// will receive [`DialogFileLoaded<T>`] in your systems when `load_file`
     /// completes.
-    pub fn with_load<T: LoadContents>(mut self) -> Self {
+    pub fn with_load_file<T: LoadContents>(mut self) -> Self {
         self.0.push(Box::new(|app| {
             app.add_event::<DialogFileLoaded<T>>();
             app.add_systems(
@@ -303,7 +303,10 @@ pub struct DialogFileLoaded<T: LoadContents> {
 
 impl Plugin for FileDialogPlugin {
     fn build(&self, app: &mut App) {
-        assert!(!self.0.is_empty(), "File dialog not initialized, use at least one FileDialogPlugin::with_save or FileDialogPlugin::with_load");
+        assert!(
+            !self.0.is_empty(),
+            "File dialog not initialized, use at least one FileDialogPlugin::with_*"
+        );
 
         for action in &self.0 {
             action(app);

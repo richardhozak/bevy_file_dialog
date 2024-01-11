@@ -7,7 +7,7 @@ fn main() {
         .add_plugins(LogPlugin::default())
         // Add the file dialog plugin and specify that we want to pick
         // directories with `PrintDirectoryPath` marker
-        .add_plugins(FileDialogPlugin::new().with_pick::<PrintDirectoryPath>())
+        .add_plugins(FileDialogPlugin::new().with_pick_directory::<PrintDirectoryPath>())
         .add_systems(Startup, load)
         .add_systems(Update, file_loaded)
         .run();

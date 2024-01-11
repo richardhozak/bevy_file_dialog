@@ -6,7 +6,7 @@ fn main() {
         .add_plugins(MinimalPlugins)
         .add_plugins(LogPlugin::default())
         // Add the file dialog plugin and specify that we want to load `ByteLenContents`
-        .add_plugins(FileDialogPlugin::new().with_load::<ByteLenContents>())
+        .add_plugins(FileDialogPlugin::new().with_load_file::<ByteLenContents>())
         .add_systems(Startup, load)
         .add_systems(Update, files_loaded)
         .run();
