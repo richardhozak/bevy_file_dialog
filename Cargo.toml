@@ -18,4 +18,4 @@ bevy_ecs = "0.12"
 bevy_utils = "0.12"
 
 [dev-dependencies]
-bevy = { version = "0.12", default_features = false, features = ["multi-threaded"] }
+bevy = { version = "0.12", features = ["multi-threaded"] }

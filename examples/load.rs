@@ -1,30 +1,24 @@
-use std::time::Duration;
-
-use bevy::{app::ScheduleRunnerPlugin, log::LogPlugin, prelude::*};
+use bevy::{log::LogPlugin, prelude::*};
 use bevy_file_dialog::prelude::*;
 
 fn main() {
     App::new()
-        .add_plugins(
-            // run the schedule forever, there is no window, so the app would
-            // terminate after one loop and we would not get file events
-            MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(0.1))),
-        )
+        .add_plugins(MinimalPlugins)
         .add_plugins(LogPlugin::default())
-        // Add the file dialog plugin and specify that we want to load `MyContents`
-        .add_plugins(FileDialogPlugin::new().with_load::<MyContents>())
+        // Add the file dialog plugin and specify that we want to load `ByteLenContents`
+        .add_plugins(FileDialogPlugin::new().with_load::<ByteLenContents>())
         .add_systems(Startup, load)
         .add_systems(Update, file_loaded)
         .run();
 }
 
-struct MyContents;
+struct ByteLenContents;
 
 fn load(mut commands: Commands) {
-    commands.dialog().load_file::<MyContents>();
+    commands.dialog().load_file::<ByteLenContents>();
 }
 
-fn file_loaded(mut ev_loaded: EventReader<DialogFileLoaded<MyContents>>) {
+fn file_loaded(mut ev_loaded: EventReader<DialogFileLoaded<ByteLenContents>>) {
     for ev in ev_loaded.read() {
         eprintln!(
             "Loaded file {} with size of {} bytes",

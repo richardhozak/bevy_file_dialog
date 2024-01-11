@@ -1,14 +1,3 @@
-# bevy_file_dialog
-
-[![crates.io](https://img.shields.io/crates/v/bevy_file_dialog)](https://crates.io/crates/bevy_file_dialog)
-[![docs.rs](https://docs.rs/bevy_file_dialog/badge.svg)](https://docs.rs/bevy_file_dialog)
-
-A plugin for loading and saving files using system dialogs for the Bevy game engine.
-
-## Usage
-See usage below for loading and saving and the [examples](https://github.com/richardhozak/bevy_file_dialog/tree/main/examples) for separate load/save dialogs. This example is also present in [examples](https://github.com/richardhozak/bevy_file_dialog/tree/main/examples) and you can run it with `cargo run --example save_and_load`.
-
-```rust
 use bevy::prelude::*;
 use bevy_file_dialog::prelude::*;
 
@@ -73,8 +62,3 @@ fn file_saved(mut ev_saved: EventReader<DialogFileSaved<TextFileContents>>) {
         }
     }
 }
-```
-
-| bevy | bevy_file_dialog |
-| ---- | ---------------- |
-| 0.12 | 0.1.0            |
