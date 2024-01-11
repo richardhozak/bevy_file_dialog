@@ -2,93 +2,14 @@
 
 //! Bevy plugin that allows you to save and load files with file dialogs.
 //!
-//! In order to use it you need to add [`FileDialogPlugin`] with one or more
-//! calls to [`FileDialogPlugin::with_save_file`], [`FileDialogPlugin::with_load_file`] or
-//! [`FileDialogPlugin::with_pick_directory`]:
-//!
-//! Here is a complete example showing all the features of the plugin:
-//! ```rust
-//! use bevy::prelude::*;
-//! use bevy_file_dialog::prelude::*;
-//!
-//! struct LevelContents;
-//! struct SaveGameContents;
-//!
-//! fn main() {
-//!     App::new()
-//!            .add_plugins(DefaultPlugins)
-//!            // Add the file dialog plugin and specify that we want to load `LevelContents`
-//!            // and save and load `SaveGameContents`
-//!            .add_plugins(
-//!                 FileDialogPlugin::new()
-//!                     .with_load_file::<LevelContents>()
-//!                     .with_save_file::<SaveGameContents>()
-//!                     .with_load_file::<SaveGameContents>()
-//!             )
-//!            .add_systems(PreUpdate, handle_input)
-//!            .add_systems(
-//!                 Update,
-//!                 (
-//!                     level_contents_loaded,
-//!                     save_game_contents_loaded,
-//!                     save_game_contents_saved
-//!                 )
-//!            )
-//!            .run();
-//! }
-//!
-//! fn level_contents_loaded(mut ev_level_contents: EventReader<DialogFileLoaded<LevelContents>>) {
-//!     for event in ev_loaded.read() {
-//!         eprintln!("Loaded level {} with size of {} bytes", event.file_name, event.contents.len());
-//!         // You can now deserialize the bytes contained in event.contents into a level
-//!     }
-//! }
-//!
-//! fn save_game_contents_loaded(mut ev_level_contents: EventReader<DialogFileLoaded<LevelContents>>) {
-//!     for event in ev_loaded.read() {
-//!         eprintln!("Loaded save game {} with size of {} bytes", event.file_name, event.contents.len());
-//!         // You can now deserialize the bytes contained in event.contents into a save game
-//!     }
-//! }
-//!
-//! fn save_game_contents_saved(mut ev_level_contents: EventReader<DialogFileSaved<LevelContents>>) {
-//!     for event in ev_loaded.read() {
-//!         eprintln!("Loaded save game {} with result {:?}", event.file_name, event.result);
-//!         // You can inspect event.result and show player the result of saving a game
-//!     }
-//! }
-//!
-//! fn handle_input(mut commands: Commands, input: Res<Input<KeyCode>>) {
-//!     if input.just_pressed(KeyCode::L) {
-//!         commands
-//!             .dialog()
-//!             .add_filter("level", &["level", "lvl"])
-//!             .set_title("Load level")
-//!             .load_file::<LevelContents>();
-//!     } else if input.just_pressed(KeyCode::S) {
-//!         let save_game_content = Vec::new(); // You'd serialize your save game to bytes here instead of Vec::new()
-//!
-//!         commands
-//!             .dialog()
-//!             .set_directory("/")
-//!             .set_title("Save game")
-//!             .save_file::<SaveGameContents>(save_game_content);
-//!     } else if input.just_pressed(KeyCode::O) {
-//!         commands
-//!             .dialog()
-//!             .set_directory("/")
-//!             .set_title("Load game")
-//!             .load_file::<SaveGameContents>();
-//!     }
-//! }
-//! ```
-//! The functions:
+//! In order to use it you need to add [`FileDialogPlugin`] to your [`App`] with
+//! at least one or more calls to:
 //! - [`FileDialogPlugin::with_save_file::<T>`]
 //! - [`FileDialogPlugin::with_load_file::<T>`]
 //! - [`FileDialogPlugin::with_pick_directory::<T>`]
 //!
-//! can be called as many times as you want, the type parameter acts as marker
-//! that allows you to call:
+//! these functions can be called as many times as you want, the type parameter
+//! acts as marker that allows you to call:
 //! - [`FileDialog::save_file`]
 //!   - for [`FileDialogPlugin::with_save_file::<T>`]
 //! - [`FileDialog::load_file`]
@@ -105,15 +26,28 @@
 //!
 //! events
 //!
+//! [`FileDialog`] can be created by calling [`FileDialogExt::dialog`],
+//! [`FileDialogExt`] as an extension trait implemented for [`Commands`]
+//! and is included in `bevy_file_dialog::prelude`:
+//!
+//! ```rust
+//! fn system(mut commands: Commands) {
+//!     commands
+//!         .dialog()
+//!         .set_directory("/")
+//!         .set_title("My Save Dialog")
+//!         .add_filter("Text", &["txt"])
+//!         .save_file::<MySaveDialog>();
+//! }
+//! ```
+//!
 //! When you load multiple files at once with
 //! [`FileDialog::load_multiple_files`], you receive them each as separate event
 //! in [`EventReader<DialogFileLoaded<T>>`] but they are sent as a batch,
 //! meaning you get them all at once.
 //!
-//! When you pick multiple directory paths at once with
-//! [`FileDialog::pick_multiple_directory_paths`], you receive them each as separate event
-//! in [`EventReader<pick::DialogDirectoryPathPicked<T>>`] but they are sent as a batch,
-//! meaning you get them all at once.
+//! The same thing applies to [`FileDialog::pick_multiple_directory_paths`] and
+//! [`EventReader<pick::DialogDirectoryPathPicked<T>>`].
 
 use std::io;
 use std::marker::PhantomData;
@@ -150,7 +84,7 @@ type RegisterAction = Box<dyn Fn(&mut App) + Send + Sync + 'static>;
 /// Marker trait saying that data can be saved to file.
 pub trait SaveContents: Send + Sync + 'static {}
 
-/// Marker trait saying that data can be loaded from file
+/// Marker trait saying that data can be loaded from file.
 pub trait LoadContents: Send + Sync + 'static {}
 
 impl<T> SaveContents for T where T: Send + Sync + 'static {}
