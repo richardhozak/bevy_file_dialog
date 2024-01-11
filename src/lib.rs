@@ -2,8 +2,9 @@
 
 //! Bevy plugin that allows you to save and load files with file dialogs.
 //!
-//! In order to use it you need to add [`FileDialogPlugin`] with one or more calls
-//! to [`FileDialogPlugin::with_save`] or [`FileDialogPlugin::with_load`]:
+//! In order to use it you need to add [`FileDialogPlugin`] with one or more
+//! calls to [`FileDialogPlugin::with_save`], [`FileDialogPlugin::with_load`] or
+//! [`FileDialogPlugin::with_pick`]:
 //!
 //! Here is a complete example showing all the features of the plugin:
 //! ```rust
@@ -82,15 +83,23 @@
 //! }
 //! ```
 //!
-//! [`FileDialogPlugin::with_save`] and [`FileDialogPlugin::with_load`] can be
-//! called as many times as you want, the type parameters act as markers that
-//! allow you to call [`FileDialog::save_file`], [`FileDialog::load_file`],
-//! [`FileDialog::load_multiple_files`] and then receive the result in
-//! [`DialogFileSaved`] and [`DialogFileLoaded`] events.
+//! [`FileDialogPlugin::with_save`], [`FileDialogPlugin::with_load`] and
+//! [`FileDialogPlugin::with_pick`] can be called as many times as you want, the
+//! type parameters act as markers that allow you to call
+//! [`FileDialog::save_file`], [`FileDialog::load_file`],
+//! [`FileDialog::load_multiple_files`], [`FileDialog::pick_directory_path`],
+//! [`FileDialog::pick_multiple_directory_paths`] and then receive the result in
+//! [`DialogFileSaved`], [`DialogFileLoaded`] or
+//! [`pick::DialogDirectoryPathPicked`] events.
 //!
 //! When you load multiple files at once with
 //! [`FileDialog::load_multiple_files`], you receive them each as separate event
 //! in [`EventReader<DialogFileLoaded<T>>`] but they are sent as a batch,
+//! meaning you get them all at once.
+//!
+//! When you pick multiple directory paths at once with
+//! [`FileDialog::pick_multiple_directory_paths`], you receive them each as separate event
+//! in [`EventReader<pick::DialogDirectoryPathPicked<T>>`] but they are sent as a batch,
 //! meaning you get them all at once.
 
 use std::io;
@@ -104,9 +113,15 @@ use bevy_utils::tracing::*;
 use futures_lite::future;
 use rfd::AsyncFileDialog;
 
+#[cfg(not(target_arch = "wasm32"))]
+mod pick;
+
 pub mod prelude {
     //! Prelude containing all types you need for saving/loading files with dialogs.
     pub use crate::{DialogFileLoaded, DialogFileSaved, FileDialogExt, FileDialogPlugin};
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub use crate::pick::DialogDirectoryPathPicked;
 }
 
 /// Add this plugin to Bevy App to use the `FileDialog` resource in your system
@@ -128,8 +143,8 @@ impl<T> LoadContents for T where T: Send + Sync + 'static {}
 
 impl FileDialogPlugin {
     /// Create new file dialog plugin. Do not forget to call at least one
-    /// `with_save` or `with_load` on the plugin to allow you to save/load
-    /// files.
+    /// `with_save`, `with_load` or `with_pick` on the plugin to allow you to
+    /// save/load files and pick directories.
     pub fn new() -> Self {
         Default::default()
     }
