@@ -82,15 +82,28 @@
 //!     }
 //! }
 //! ```
+//! The functions:
+//! - [`FileDialogPlugin::with_save::<T>`]
+//! - [`FileDialogPlugin::with_load::<T>`]
+//! - [`FileDialogPlugin::with_pick::<T>`]
 //!
-//! [`FileDialogPlugin::with_save`], [`FileDialogPlugin::with_load`] and
-//! [`FileDialogPlugin::with_pick`] can be called as many times as you want, the
-//! type parameters act as markers that allow you to call
-//! [`FileDialog::save_file`], [`FileDialog::load_file`],
-//! [`FileDialog::load_multiple_files`], [`FileDialog::pick_directory_path`],
-//! [`FileDialog::pick_multiple_directory_paths`] and then receive the result in
-//! [`DialogFileSaved`], [`DialogFileLoaded`] or
-//! [`pick::DialogDirectoryPathPicked`] events.
+//! can be called as many times as you want, the type parameter acts as marker
+//! that allows you to call:
+//! - [`FileDialog::save_file`]
+//!   - for [`FileDialogPlugin::with_save::<T>`]
+//! - [`FileDialog::load_file`]
+//! - [`FileDialog::load_multiple_files`]
+//!   - for [`FileDialogPlugin::with_load::<T>`]
+//! - [`FileDialog::pick_directory_path`]
+//! - [`FileDialog::pick_multiple_directory_paths`]
+//!   - for [`FileDialogPlugin::with_pick::<T>`]
+//!
+//! with same type marker and then receive the result in
+//! - [`DialogFileSaved`] ([`EventReader<DialogFileSaved<T>>`])
+//! - [`DialogFileLoaded`] ([`EventReader<DialogFileLoaded<T>>`])
+//! - [`pick::DialogDirectoryPathPicked`] ([`EventReader<pick::DialogDirectoryPathPicked<T>>`])
+//!
+//! events
 //!
 //! When you load multiple files at once with
 //! [`FileDialog::load_multiple_files`], you receive them each as separate event
