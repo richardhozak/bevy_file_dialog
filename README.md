@@ -75,6 +75,16 @@ fn file_saved(mut ev_saved: EventReader<DialogFileSaved<TextFileContents>>) {
 }
 ```
 
+## File dialogs on Linux and BSDs
+
+You can use one of the two backends on linux to create file dialogs that is specified with features, either `gtk3` or `xdg-portal`. By default `bevy_file_dialog` uses the default provided by `rfd` which is `gtk3`. You can change this by specifying the correct features in your `Cargo.toml`:
+```
+bevy_file_dialog = { version = "*", default-features = false, features = ["xdg-portal"] }
+```
+More information in [rfd docs](https://docs.rs/rfd/0.12.1/rfd/index.html#linux--bsd-backends), the information there matches `bevy_file_dialog`.
+
+---
+
 | bevy | bevy_file_dialog |
 | ---- | ---------------- |
 | 0.12 | 0.1.0            |
