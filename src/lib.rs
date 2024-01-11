@@ -84,8 +84,14 @@
 //!
 //! [`FileDialogPlugin::with_save`] and [`FileDialogPlugin::with_load`] can be
 //! called as many times as you want, the type parameters act as markers that
-//! allow you to call [`FileDialog::save_file`] and [`FileDialog::load_file`] and
-//! receive the result in [`DialogFileSaved`] and [`DialogFileLoaded`] events.
+//! allow you to call [`FileDialog::save_file`], [`FileDialog::load_file`],
+//! [`FileDialog::load_multiple_files`] and then receive the result in
+//! [`DialogFileSaved`] and [`DialogFileLoaded`] events.
+//!
+//! When you load multiple files at once with
+//! [`FileDialog::load_multiple_files`], you receive them each as separate event
+//! in [`EventReader<DialogFileLoaded<T>>`] but they are sent as a batch,
+//! meaning you get them all at once.
 
 use std::io;
 use std::marker::PhantomData;
@@ -152,10 +158,36 @@ impl FileDialogPlugin {
             app.add_event::<DialogFileLoaded<T>>();
             app.add_systems(
                 First,
-                poll_load_dialog_result::<T>.run_if(resource_exists::<LoadDialog<T>>()),
+                (
+                    poll_load_dialog_result::<T>.run_if(resource_exists::<LoadDialog<T>>()),
+                    poll_load_multiple_dialog_result::<T>
+                        .run_if(resource_exists::<LoadMultipleDialog<T>>()),
+                ),
             );
         }));
         self
+    }
+}
+
+fn poll_load_multiple_dialog_result<T: LoadContents>(
+    mut commands: Commands,
+    mut dialog: ResMut<LoadMultipleDialog<T>>,
+    mut ev_saved: EventWriter<DialogFileLoaded<T>>,
+) {
+    if let Some(result) = future::block_on(future::poll_once(&mut dialog.task)) {
+        if let Some(file_contents) = result {
+            ev_saved.send_batch(file_contents.into_iter().map(|(file_name, contents)| {
+                DialogFileLoaded {
+                    file_name,
+                    contents,
+                    marker: PhantomData,
+                }
+            }));
+        } else {
+            info!("Load multiple dialog closed");
+        }
+
+        commands.remove_resource::<LoadMultipleDialog<T>>();
     }
 }
 
@@ -197,6 +229,12 @@ fn poll_save_dialog_result<T: SaveContents>(
 
         commands.remove_resource::<SaveDialog<T>>();
     }
+}
+
+#[derive(Resource)]
+struct LoadMultipleDialog<T: LoadContents> {
+    task: Task<Option<Vec<(String, Vec<u8>)>>>,
+    marker: PhantomData<T>,
 }
 
 #[derive(Resource)]
@@ -347,6 +385,35 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
 
             world.remove_resource::<LoadDialog<T>>();
             world.insert_resource(LoadDialog { task, marker });
+        });
+    }
+
+    /// Open pick file dialog for multiple files and load contents for all
+    /// selected files. When file contents get loaded, the
+    /// [`DialogFileLoaded<T>`] gets sent for each file. You can read each file
+    /// by reading every event received with with Bevy's
+    /// [`EventReader<DialogFileLoaded<T>>`].
+    pub fn load_multiple_files<T: LoadContents>(self) {
+        self.commands.add(|world: &mut World| {
+            let task = AsyncComputeTaskPool::get().spawn(async move {
+                let files = AsyncFileDialog::new().pick_files().await;
+
+                if let Some(files) = files {
+                    let mut contents = Vec::new();
+                    for file in files {
+                        contents.push((file.file_name(), file.read().await));
+                    }
+
+                    Some(contents)
+                } else {
+                    None
+                }
+            });
+
+            let marker = PhantomData::<T>;
+
+            world.remove_resource::<LoadMultipleDialog<T>>();
+            world.insert_resource(LoadMultipleDialog { task, marker });
         });
     }
 }
