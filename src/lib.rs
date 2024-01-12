@@ -54,10 +54,11 @@ use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
 use bevy_app::prelude::*;
+use bevy_derive::Deref;
 use bevy_ecs::prelude::*;
-use bevy_tasks::{prelude::*, Task};
+use bevy_tasks::prelude::*;
 use bevy_utils::tracing::*;
-use futures_lite::future;
+use crossbeam_channel::{bounded, Receiver, Sender};
 use rfd::AsyncFileDialog;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -105,12 +106,12 @@ impl FileDialogPlugin {
     /// completes.
     pub fn with_save_file<T: SaveContents>(mut self) -> Self {
         self.0.push(Box::new(|app| {
+            let (tx, rx) = bounded::<Option<DialogFileSaved<T>>>(1);
+            app.insert_resource(StreamSender(tx));
+            app.insert_resource(StreamReceiver(rx));
             app.add_event::<DialogFileSaved<T>>();
             app.add_event::<DialogFileSaveCanceled<T>>();
-            app.add_systems(
-                First,
-                poll_save_dialog_result::<T>.run_if(resource_exists::<SaveDialog<T>>()),
-            );
+            app.add_systems(First, poll_save_dialog_result::<T>);
         }));
         self
     }
@@ -121,14 +122,19 @@ impl FileDialogPlugin {
     /// completes.
     pub fn with_load_file<T: LoadContents>(mut self) -> Self {
         self.0.push(Box::new(|app| {
+            let (tx, rx) = bounded::<Option<DialogFileLoaded<T>>>(1);
+            app.insert_resource(StreamSender(tx));
+            app.insert_resource(StreamReceiver(rx));
+            let (tx, rx) = bounded::<Option<Vec<DialogFileLoaded<T>>>>(1);
+            app.insert_resource(StreamSender(tx));
+            app.insert_resource(StreamReceiver(rx));
             app.add_event::<DialogFileLoaded<T>>();
             app.add_event::<DialogFileLoadCanceled<T>>();
             app.add_systems(
                 First,
                 (
-                    poll_load_dialog_result::<T>.run_if(resource_exists::<LoadDialog<T>>()),
-                    poll_load_multiple_dialog_result::<T>
-                        .run_if(resource_exists::<LoadMultipleDialog<T>>()),
+                    poll_load_dialog_result::<T>,
+                    poll_load_multiple_dialog_result::<T>,
                 ),
             );
         }));
@@ -136,87 +142,49 @@ impl FileDialogPlugin {
     }
 }
 
+#[derive(Resource, Deref)]
+struct StreamReceiver<T>(Receiver<T>);
+
+#[derive(Resource, Deref)]
+struct StreamSender<T>(Sender<T>);
+
 fn poll_load_multiple_dialog_result<T: LoadContents>(
-    mut commands: Commands,
-    mut dialog: ResMut<LoadMultipleDialog<T>>,
+    receiver: Res<StreamReceiver<Option<Vec<DialogFileLoaded<T>>>>>,
     mut ev_saved: EventWriter<DialogFileLoaded<T>>,
     mut ev_canceled: EventWriter<DialogFileLoadCanceled<T>>,
 ) {
-    if let Some(result) = future::block_on(future::poll_once(&mut dialog.task)) {
-        if let Some(file_contents) = result {
-            ev_saved.send_batch(file_contents.into_iter().map(|(file_name, contents)| {
-                DialogFileLoaded {
-                    file_name,
-                    contents,
-                    marker: PhantomData,
-                }
-            }));
-        } else {
-            ev_canceled.send(DialogFileLoadCanceled(PhantomData));
+    for event in receiver.try_iter() {
+        match event {
+            Some(event) => ev_saved.send_batch(event),
+            None => ev_canceled.send(DialogFileLoadCanceled(PhantomData)),
         }
-
-        commands.remove_resource::<LoadMultipleDialog<T>>();
     }
 }
 
 fn poll_load_dialog_result<T: LoadContents>(
-    mut commands: Commands,
-    mut dialog: ResMut<LoadDialog<T>>,
+    receiver: Res<StreamReceiver<Option<DialogFileLoaded<T>>>>,
     mut ev_saved: EventWriter<DialogFileLoaded<T>>,
     mut ev_canceled: EventWriter<DialogFileLoadCanceled<T>>,
 ) {
-    if let Some(result) = future::block_on(future::poll_once(&mut dialog.task)) {
-        if let Some((file_name, contents)) = result {
-            ev_saved.send(DialogFileLoaded {
-                file_name,
-                contents,
-                marker: PhantomData,
-            });
-        } else {
-            ev_canceled.send(DialogFileLoadCanceled(PhantomData));
+    for event in receiver.try_iter() {
+        match event {
+            Some(event) => ev_saved.send(event),
+            None => ev_canceled.send(DialogFileLoadCanceled(PhantomData)),
         }
-
-        commands.remove_resource::<LoadDialog<T>>();
     }
 }
 
 fn poll_save_dialog_result<T: SaveContents>(
-    mut commands: Commands,
-    mut dialog: ResMut<SaveDialog<T>>,
+    receiver: Res<StreamReceiver<Option<DialogFileSaved<T>>>>,
     mut ev_saved: EventWriter<DialogFileSaved<T>>,
     mut ev_canceled: EventWriter<DialogFileSaveCanceled<T>>,
 ) {
-    if let Some(result) = future::block_on(future::poll_once(&mut dialog.task)) {
-        if let Some((file_name, result)) = result {
-            ev_saved.send(DialogFileSaved {
-                file_name,
-                result,
-                marker: PhantomData,
-            });
-        } else {
-            ev_canceled.send(DialogFileSaveCanceled(PhantomData));
+    for event in receiver.try_iter() {
+        match event {
+            Some(event) => ev_saved.send(event),
+            None => ev_canceled.send(DialogFileSaveCanceled(PhantomData)),
         }
-
-        commands.remove_resource::<SaveDialog<T>>();
     }
-}
-
-#[derive(Resource)]
-struct LoadMultipleDialog<T: LoadContents> {
-    task: Task<Option<Vec<(String, Vec<u8>)>>>,
-    marker: PhantomData<T>,
-}
-
-#[derive(Resource)]
-struct LoadDialog<T: LoadContents> {
-    task: Task<Option<(String, Vec<u8>)>>,
-    marker: PhantomData<T>,
-}
-
-#[derive(Resource)]
-struct SaveDialog<T: SaveContents> {
-    task: Task<Option<(String, Result<(), io::Error>)>>,
-    marker: PhantomData<T>,
 }
 
 /// Event that gets sent when file contents get saved to file system.
@@ -330,20 +298,30 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
     /// with Bevy's [`EventReader<DialogFileSaved<T>>`] system param.
     pub fn save_file<T: SaveContents>(self, contents: Vec<u8>) {
         self.commands.add(|world: &mut World| {
-            let task = AsyncComputeTaskPool::get().spawn(async move {
-                let file = AsyncFileDialog::new().save_file().await;
+            let sender = world
+                .get_resource::<StreamSender<Option<DialogFileSaved<T>>>>()
+                .expect("FileDialogPlugin not initialized with 'with_save_file::<T>()'")
+                .0
+                .clone();
 
-                if let Some(file) = file {
-                    Some((file.file_name(), file.write(&contents).await))
-                } else {
-                    None
-                }
-            });
+            AsyncComputeTaskPool::get()
+                .spawn(async move {
+                    let file = AsyncFileDialog::new().save_file().await;
 
-            let marker = PhantomData::<T>;
+                    let Some(file) = file else {
+                        sender.send(None).unwrap();
+                        return;
+                    };
 
-            world.remove_resource::<SaveDialog<T>>();
-            world.insert_resource(SaveDialog { task, marker });
+                    let event = DialogFileSaved {
+                        file_name: file.file_name(),
+                        result: file.write(&contents).await,
+                        marker: PhantomData,
+                    };
+
+                    sender.send(Some(event)).unwrap();
+                })
+                .detach();
         });
     }
 
@@ -352,20 +330,30 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
     /// Bevy's [`EventReader<DialogFileLoaded<T>>`].
     pub fn load_file<T: LoadContents>(self) {
         self.commands.add(|world: &mut World| {
-            let task = AsyncComputeTaskPool::get().spawn(async move {
-                let file = AsyncFileDialog::new().pick_file().await;
+            let sender = world
+                .get_resource::<StreamSender<Option<DialogFileLoaded<T>>>>()
+                .expect("FileDialogPlugin not initialized with 'with_load_file::<T>()'")
+                .0
+                .clone();
 
-                if let Some(file) = file {
-                    Some((file.file_name(), file.read().await))
-                } else {
-                    None
-                }
-            });
+            AsyncComputeTaskPool::get()
+                .spawn(async move {
+                    let file = AsyncFileDialog::new().pick_file().await;
 
-            let marker = PhantomData::<T>;
+                    let Some(file) = file else {
+                        sender.send(None).unwrap();
+                        return;
+                    };
 
-            world.remove_resource::<LoadDialog<T>>();
-            world.insert_resource(LoadDialog { task, marker });
+                    let event = DialogFileLoaded {
+                        file_name: file.file_name(),
+                        contents: file.read().await,
+                        marker: PhantomData,
+                    };
+
+                    sender.send(Some(event)).unwrap();
+                })
+                .detach();
         });
     }
 
@@ -376,25 +364,33 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
     /// [`EventReader<DialogFileLoaded<T>>`].
     pub fn load_multiple_files<T: LoadContents>(self) {
         self.commands.add(|world: &mut World| {
-            let task = AsyncComputeTaskPool::get().spawn(async move {
-                let files = AsyncFileDialog::new().pick_files().await;
+            let sender = world
+                .get_resource::<StreamSender<Option<Vec<DialogFileLoaded<T>>>>>()
+                .expect("FileDialogPlugin not initialized with 'with_load_file::<T>()'")
+                .0
+                .clone();
 
-                if let Some(files) = files {
-                    let mut contents = Vec::new();
+            AsyncComputeTaskPool::get()
+                .spawn(async move {
+                    let files = AsyncFileDialog::new().pick_files().await;
+
+                    let Some(files) = files else {
+                        sender.send(None).unwrap();
+                        return;
+                    };
+
+                    let mut events = Vec::new();
                     for file in files {
-                        contents.push((file.file_name(), file.read().await));
+                        events.push(DialogFileLoaded {
+                            file_name: file.file_name(),
+                            contents: file.read().await,
+                            marker: PhantomData,
+                        });
                     }
 
-                    Some(contents)
-                } else {
-                    None
-                }
-            });
-
-            let marker = PhantomData::<T>;
-
-            world.remove_resource::<LoadMultipleDialog<T>>();
-            world.insert_resource(LoadMultipleDialog { task, marker });
+                    sender.send(Some(events)).unwrap();
+                })
+                .detach();
         });
     }
 }

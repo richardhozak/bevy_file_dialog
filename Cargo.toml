@@ -16,12 +16,13 @@ xdg-portal = ["rfd/xdg-portal"]
 gtk3 = ["rfd/gtk3"]
 
 [dependencies]
-futures-lite = "2.0"
 rfd = { version = "0.12", default-features = false }
+crossbeam-channel = "0.5.11"
 bevy_tasks = { version = "0.12", features = ["multi-threaded"] }
 bevy_app = "0.12"
 bevy_ecs = "0.12"
 bevy_utils = "0.12"
+bevy_derive = "0.12"
 
 [dev-dependencies]
 bevy = { version = "0.12", features = ["multi-threaded"] }
