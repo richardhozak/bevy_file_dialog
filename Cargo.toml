@@ -19,8 +19,8 @@ gtk3 = ["rfd/gtk3"]
 rfd = { version = "0.12", default-features = false }
 crossbeam-channel = "0.5.11"
 bevy_tasks = { version = "0.12", features = ["multi-threaded"] }
-bevy_app = "0.12"
-bevy_ecs = "0.12"
+bevy_app = { version = "0.12", default-features = false }
+bevy_ecs = { version = "0.12", default-features = false }
 bevy_utils = "0.12"
 bevy_derive = "0.12"
 
