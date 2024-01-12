@@ -42,6 +42,7 @@ fn dialog(mut commands: Commands, keys: Res<Input<KeyCode>>) {
             commands
                 .dialog()
                 .add_filter("Text", &["txt"])
+                .set_file_name("hello.txt")
                 .save_file::<TextFileContents>(b"hello".to_vec());
         } else if keys.just_pressed(KeyCode::O) {
             // read contents from selected file

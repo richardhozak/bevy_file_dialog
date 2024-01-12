@@ -78,7 +78,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
 
             AsyncComputeTaskPool::get()
                 .spawn(async move {
-                    let file = AsyncFileDialog::new().pick_folder().await;
+                    let file = self.dialog.pick_folder().await;
 
                     let Some(file) = file else {
                         sender.send(DialogResult::Canceled).unwrap();
