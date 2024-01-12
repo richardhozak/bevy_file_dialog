@@ -21,7 +21,7 @@ fn load(mut commands: Commands) {
         .pick_multiple_directory_paths::<PrintDirectoryPath>();
 }
 
-fn file_loaded(mut ev_picked: EventReader<DialogDirectoryPathPicked<PrintDirectoryPath>>) {
+fn file_loaded(mut ev_picked: EventReader<DialogDirectoryPicked<PrintDirectoryPath>>) {
     if ev_picked.is_empty() {
         return;
     }

@@ -22,7 +22,7 @@
 //! with same type marker and then receive the result in
 //! - [`DialogFileSaved`] ([`EventReader<DialogFileSaved<T>>`])
 //! - [`DialogFileLoaded`] ([`EventReader<DialogFileLoaded<T>>`])
-//! - [`pick::DialogDirectoryPathPicked`] ([`EventReader<pick::DialogDirectoryPathPicked<T>>`])
+//! - [`pick::DialogDirectoryPicked`] ([`EventReader<pick::DialogDirectoryPicked<T>>`])
 //!
 //! events
 //!
@@ -47,7 +47,7 @@
 //! meaning you get them all at once.
 //!
 //! The same thing applies to [`FileDialog::pick_multiple_directory_paths`] and
-//! [`EventReader<pick::DialogDirectoryPathPicked<T>>`].
+//! [`EventReader<pick::DialogDirectoryPicked<T>>`].
 
 use std::io;
 use std::marker::PhantomData;
@@ -71,7 +71,7 @@ pub mod prelude {
     };
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub use crate::pick::{DialogDirectoryPathPickCanceled, DialogDirectoryPathPicked};
+    pub use crate::pick::{DialogDirectoryPickCanceled, DialogDirectoryPicked};
 }
 
 /// Add this plugin to Bevy App to use the `FileDialog` resource in your system

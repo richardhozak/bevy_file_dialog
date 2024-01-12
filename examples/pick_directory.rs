@@ -21,7 +21,7 @@ fn load(mut commands: Commands) {
         .pick_directory_path::<PrintDirectoryPath>();
 }
 
-fn file_loaded(mut ev_picked: EventReader<DialogDirectoryPathPicked<PrintDirectoryPath>>) {
+fn file_loaded(mut ev_picked: EventReader<DialogDirectoryPicked<PrintDirectoryPath>>) {
     for ev in ev_picked.read() {
         eprintln!("Directory picked, path {:?}", ev.path);
     }

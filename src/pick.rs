@@ -13,7 +13,7 @@ use crate::{
 
 /// Event that gets sent when directory path gets selected from file system.
 #[derive(Event)]
-pub struct DialogDirectoryPathPicked<T: PickDirectoryPath> {
+pub struct DialogDirectoryPicked<T: PickDirectoryPath> {
     /// Path of picked directory.
     pub path: PathBuf,
 
@@ -22,9 +22,9 @@ pub struct DialogDirectoryPathPicked<T: PickDirectoryPath> {
 
 /// Event that gets sent when user closes pick directory dialog without picking any directory.
 #[derive(Event)]
-pub struct DialogDirectoryPathPickCanceled<T: PickDirectoryPath>(PhantomData<T>);
+pub struct DialogDirectoryPickCanceled<T: PickDirectoryPath>(PhantomData<T>);
 
-impl<T: PickDirectoryPath> Default for DialogDirectoryPathPickCanceled<T> {
+impl<T: PickDirectoryPath> Default for DialogDirectoryPickCanceled<T> {
     fn default() -> Self {
         Self(Default::default())
     }
@@ -39,23 +39,20 @@ impl FileDialogPlugin {
     /// Allow picking directory paths. This allows you to call
     /// [`FileDialog::pick_directory_path`] and
     /// [`FileDialog::pick_multiple_directory_paths`] on [`Commands`]. For each
-    /// `with_pick_directory` you will receive [`DialogDirectoryPathPicked<T>`] in your
+    /// `with_pick_directory` you will receive [`DialogDirectoryPicked<T>`] in your
     /// systems when picking completes.
     ///
     /// Does not exist in `WASM32`.
     pub fn with_pick_directory<T: PickDirectoryPath>(mut self) -> Self {
         self.0.push(Box::new(|app| {
-            let (tx, rx) = bounded::<DialogResult<DialogDirectoryPathPicked<T>>>(1);
+            let (tx, rx) = bounded::<DialogResult<DialogDirectoryPicked<T>>>(1);
             app.insert_resource(StreamSender(tx));
             app.insert_resource(StreamReceiver(rx));
-            app.add_event::<DialogDirectoryPathPicked<T>>();
-            app.add_event::<DialogDirectoryPathPickCanceled<T>>();
+            app.add_event::<DialogDirectoryPicked<T>>();
+            app.add_event::<DialogDirectoryPickCanceled<T>>();
             app.add_systems(
                 First,
-                handle_dialog_result::<
-                    DialogDirectoryPathPicked<T>,
-                    DialogDirectoryPathPickCanceled<T>,
-                >,
+                handle_dialog_result::<DialogDirectoryPicked<T>, DialogDirectoryPickCanceled<T>>,
             );
         }));
         self
@@ -63,15 +60,15 @@ impl FileDialogPlugin {
 }
 
 impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
-    /// Open pick directory dialog and send [`DialogDirectoryPathPicked<T>`]
+    /// Open pick directory dialog and send [`DialogDirectoryPicked<T>`]
     /// event. You can read this event with Bevy's
-    /// [`EventReader<DialogDirectoryPathPicked<T>>`].
+    /// [`EventReader<DialogDirectoryPicked<T>>`].
     ///
     /// Does not exist in `wasm32`.
     pub fn pick_directory_path<T: PickDirectoryPath>(self) {
         self.commands.add(|world: &mut World| {
             let sender = world
-                .get_resource::<StreamSender<DialogResult<DialogDirectoryPathPicked<T>>>>()
+                .get_resource::<StreamSender<DialogResult<DialogDirectoryPicked<T>>>>()
                 .expect("FileDialogPlugin not initialized with 'with_load_file::<T>()'")
                 .0
                 .clone();
@@ -85,7 +82,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                         return;
                     };
 
-                    let event = DialogDirectoryPathPicked {
+                    let event = DialogDirectoryPicked {
                         path: file.path().to_path_buf(),
                         marker: PhantomData,
                     };
@@ -97,15 +94,15 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
     }
 
     /// Open pick multiple directories dialog and send
-    /// [`DialogDirectoryPathPicked<T>`] for each selected directory path. You
+    /// [`DialogDirectoryPicked<T>`] for each selected directory path. You
     /// can get each path by reading every event received with with Bevy's
-    /// [`EventReader<DialogDirectoryPathPicked<T>>`].
+    /// [`EventReader<DialogDirectoryPicked<T>>`].
     ///
     /// Does not exist in `wasm32`.
     pub fn pick_multiple_directory_paths<T: PickDirectoryPath>(self) {
         self.commands.add(|world: &mut World| {
             let sender = world
-                .get_resource::<StreamSender<DialogResult<DialogDirectoryPathPicked<T>>>>()
+                .get_resource::<StreamSender<DialogResult<DialogDirectoryPicked<T>>>>()
                 .expect("FileDialogPlugin not initialized with 'with_load_file::<T>()'")
                 .0
                 .clone();
@@ -121,7 +118,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
 
                     let events = files
                         .into_iter()
-                        .map(|file| DialogDirectoryPathPicked {
+                        .map(|file| DialogDirectoryPicked {
                             path: file.path().to_path_buf(),
                             marker: PhantomData,
                         })
