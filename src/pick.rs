@@ -7,7 +7,9 @@ use bevy_tasks::prelude::*;
 use crossbeam_channel::bounded;
 use rfd::AsyncFileDialog;
 
-use crate::{FileDialog, FileDialogPlugin, StreamReceiver, StreamSender};
+use crate::{
+    handle_dialog_result, DialogResult, FileDialog, FileDialogPlugin, StreamReceiver, StreamSender,
+};
 
 /// Event that gets sent when directory path gets selected from file system.
 #[derive(Event)]
@@ -21,6 +23,12 @@ pub struct DialogDirectoryPathPicked<T: PickDirectoryPath> {
 /// Event that gets sent when user closes pick directory dialog without picking any directory.
 #[derive(Event)]
 pub struct DialogDirectoryPathPickCanceled<T: PickDirectoryPath>(PhantomData<T>);
+
+impl<T: PickDirectoryPath> Default for DialogDirectoryPathPickCanceled<T> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
 
 /// Marker trait saying that data can be loaded from file
 pub trait PickDirectoryPath: Send + Sync + 'static {}
@@ -37,49 +45,20 @@ impl FileDialogPlugin {
     /// Does not exist in `WASM32`.
     pub fn with_pick_directory<T: PickDirectoryPath>(mut self) -> Self {
         self.0.push(Box::new(|app| {
-            let (tx, rx) = bounded::<Option<DialogDirectoryPathPicked<T>>>(1);
-            app.insert_resource(StreamSender(tx));
-            app.insert_resource(StreamReceiver(rx));
-            let (tx, rx) = bounded::<Option<Vec<DialogDirectoryPathPicked<T>>>>(1);
+            let (tx, rx) = bounded::<DialogResult<DialogDirectoryPathPicked<T>>>(1);
             app.insert_resource(StreamSender(tx));
             app.insert_resource(StreamReceiver(rx));
             app.add_event::<DialogDirectoryPathPicked<T>>();
             app.add_event::<DialogDirectoryPathPickCanceled<T>>();
             app.add_systems(
                 First,
-                (
-                    poll_pick_directory_path_dialog_result::<T>,
-                    poll_pick_multiple_directory_paths_dialog_result::<T>,
-                ),
+                handle_dialog_result::<
+                    DialogDirectoryPathPicked<T>,
+                    DialogDirectoryPathPickCanceled<T>,
+                >,
             );
         }));
         self
-    }
-}
-
-fn poll_pick_directory_path_dialog_result<T: PickDirectoryPath>(
-    receiver: Res<StreamReceiver<Option<DialogDirectoryPathPicked<T>>>>,
-    mut ev_picked: EventWriter<DialogDirectoryPathPicked<T>>,
-    mut ev_canceled: EventWriter<DialogDirectoryPathPickCanceled<T>>,
-) {
-    for event in receiver.try_iter() {
-        match event {
-            Some(event) => ev_picked.send(event),
-            None => ev_canceled.send(DialogDirectoryPathPickCanceled(PhantomData)),
-        }
-    }
-}
-
-fn poll_pick_multiple_directory_paths_dialog_result<T: PickDirectoryPath>(
-    receiver: Res<StreamReceiver<Option<Vec<DialogDirectoryPathPicked<T>>>>>,
-    mut ev_picked: EventWriter<DialogDirectoryPathPicked<T>>,
-    mut ev_canceled: EventWriter<DialogDirectoryPathPickCanceled<T>>,
-) {
-    for event in receiver.try_iter() {
-        match event {
-            Some(event) => ev_picked.send_batch(event),
-            None => ev_canceled.send(DialogDirectoryPathPickCanceled(PhantomData)),
-        }
     }
 }
 
@@ -92,7 +71,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
     pub fn pick_directory_path<T: PickDirectoryPath>(self) {
         self.commands.add(|world: &mut World| {
             let sender = world
-                .get_resource::<StreamSender<Option<DialogDirectoryPathPicked<T>>>>()
+                .get_resource::<StreamSender<DialogResult<DialogDirectoryPathPicked<T>>>>()
                 .expect("FileDialogPlugin not initialized with 'with_load_file::<T>()'")
                 .0
                 .clone();
@@ -102,7 +81,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                     let file = AsyncFileDialog::new().pick_folder().await;
 
                     let Some(file) = file else {
-                        sender.send(None).unwrap();
+                        sender.send(DialogResult::Canceled).unwrap();
                         return;
                     };
 
@@ -111,7 +90,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                         marker: PhantomData,
                     };
 
-                    sender.send(Some(event)).unwrap();
+                    sender.send(DialogResult::Single(event)).unwrap();
                 })
                 .detach();
         });
@@ -126,7 +105,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
     pub fn pick_multiple_directory_paths<T: PickDirectoryPath>(self) {
         self.commands.add(|world: &mut World| {
             let sender = world
-                .get_resource::<StreamSender<Option<Vec<DialogDirectoryPathPicked<T>>>>>()
+                .get_resource::<StreamSender<DialogResult<DialogDirectoryPathPicked<T>>>>()
                 .expect("FileDialogPlugin not initialized with 'with_load_file::<T>()'")
                 .0
                 .clone();
@@ -136,7 +115,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                     let files = AsyncFileDialog::new().pick_folders().await;
 
                     let Some(files) = files else {
-                        sender.send(None).unwrap();
+                        sender.send(DialogResult::Canceled).unwrap();
                         return;
                     };
 
@@ -148,7 +127,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                         })
                         .collect();
 
-                    sender.send(Some(events)).unwrap();
+                    sender.send(DialogResult::Batch(events)).unwrap();
                 })
                 .detach();
         });

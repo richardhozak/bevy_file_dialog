@@ -57,7 +57,6 @@ use bevy_app::prelude::*;
 use bevy_derive::Deref;
 use bevy_ecs::prelude::*;
 use bevy_tasks::prelude::*;
-use bevy_utils::tracing::*;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use rfd::AsyncFileDialog;
 
@@ -106,12 +105,15 @@ impl FileDialogPlugin {
     /// completes.
     pub fn with_save_file<T: SaveContents>(mut self) -> Self {
         self.0.push(Box::new(|app| {
-            let (tx, rx) = bounded::<Option<DialogFileSaved<T>>>(1);
+            let (tx, rx) = bounded::<DialogResult<DialogFileSaved<T>>>(1);
             app.insert_resource(StreamSender(tx));
             app.insert_resource(StreamReceiver(rx));
             app.add_event::<DialogFileSaved<T>>();
             app.add_event::<DialogFileSaveCanceled<T>>();
-            app.add_systems(First, poll_save_dialog_result::<T>);
+            app.add_systems(
+                First,
+                handle_dialog_result::<DialogFileSaved<T>, DialogFileSaveCanceled<T>>,
+            );
         }));
         self
     }
@@ -122,20 +124,14 @@ impl FileDialogPlugin {
     /// completes.
     pub fn with_load_file<T: LoadContents>(mut self) -> Self {
         self.0.push(Box::new(|app| {
-            let (tx, rx) = bounded::<Option<DialogFileLoaded<T>>>(1);
-            app.insert_resource(StreamSender(tx));
-            app.insert_resource(StreamReceiver(rx));
-            let (tx, rx) = bounded::<Option<Vec<DialogFileLoaded<T>>>>(1);
+            let (tx, rx) = bounded::<DialogResult<DialogFileLoaded<T>>>(1);
             app.insert_resource(StreamSender(tx));
             app.insert_resource(StreamReceiver(rx));
             app.add_event::<DialogFileLoaded<T>>();
             app.add_event::<DialogFileLoadCanceled<T>>();
             app.add_systems(
                 First,
-                (
-                    poll_load_dialog_result::<T>,
-                    poll_load_multiple_dialog_result::<T>,
-                ),
+                handle_dialog_result::<DialogFileLoaded<T>, DialogFileLoadCanceled<T>>,
             );
         }));
         self
@@ -148,41 +144,22 @@ struct StreamReceiver<T>(Receiver<T>);
 #[derive(Resource, Deref)]
 struct StreamSender<T>(Sender<T>);
 
-fn poll_load_multiple_dialog_result<T: LoadContents>(
-    receiver: Res<StreamReceiver<Option<Vec<DialogFileLoaded<T>>>>>,
-    mut ev_saved: EventWriter<DialogFileLoaded<T>>,
-    mut ev_canceled: EventWriter<DialogFileLoadCanceled<T>>,
-) {
-    for event in receiver.try_iter() {
-        match event {
-            Some(event) => ev_saved.send_batch(event),
-            None => ev_canceled.send(DialogFileLoadCanceled(PhantomData)),
-        }
-    }
+enum DialogResult<T> {
+    Single(T),
+    Batch(Vec<T>),
+    Canceled,
 }
 
-fn poll_load_dialog_result<T: LoadContents>(
-    receiver: Res<StreamReceiver<Option<DialogFileLoaded<T>>>>,
-    mut ev_saved: EventWriter<DialogFileLoaded<T>>,
-    mut ev_canceled: EventWriter<DialogFileLoadCanceled<T>>,
+fn handle_dialog_result<E: Event, C: Event + Default>(
+    receiver: Res<StreamReceiver<DialogResult<E>>>,
+    mut ev_done: EventWriter<E>,
+    mut ev_canceled: EventWriter<C>,
 ) {
-    for event in receiver.try_iter() {
-        match event {
-            Some(event) => ev_saved.send(event),
-            None => ev_canceled.send(DialogFileLoadCanceled(PhantomData)),
-        }
-    }
-}
-
-fn poll_save_dialog_result<T: SaveContents>(
-    receiver: Res<StreamReceiver<Option<DialogFileSaved<T>>>>,
-    mut ev_saved: EventWriter<DialogFileSaved<T>>,
-    mut ev_canceled: EventWriter<DialogFileSaveCanceled<T>>,
-) {
-    for event in receiver.try_iter() {
-        match event {
-            Some(event) => ev_saved.send(event),
-            None => ev_canceled.send(DialogFileSaveCanceled(PhantomData)),
+    for result in receiver.try_iter() {
+        match result {
+            DialogResult::Single(event) => ev_done.send(event),
+            DialogResult::Batch(events) => ev_done.send_batch(events),
+            DialogResult::Canceled => ev_canceled.send_default(),
         }
     }
 }
@@ -215,9 +192,21 @@ pub struct DialogFileLoaded<T: LoadContents> {
 #[derive(Event)]
 pub struct DialogFileLoadCanceled<T: LoadContents>(PhantomData<T>);
 
+impl<T: LoadContents> Default for DialogFileLoadCanceled<T> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
 /// Event that gets sent when user closes file save dialog without saving any file.
 #[derive(Event)]
 pub struct DialogFileSaveCanceled<T: SaveContents>(PhantomData<T>);
+
+impl<T: SaveContents> Default for DialogFileSaveCanceled<T> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
 
 impl Plugin for FileDialogPlugin {
     fn build(&self, app: &mut App) {
@@ -299,7 +288,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
     pub fn save_file<T: SaveContents>(self, contents: Vec<u8>) {
         self.commands.add(|world: &mut World| {
             let sender = world
-                .get_resource::<StreamSender<Option<DialogFileSaved<T>>>>()
+                .get_resource::<StreamSender<DialogResult<DialogFileSaved<T>>>>()
                 .expect("FileDialogPlugin not initialized with 'with_save_file::<T>()'")
                 .0
                 .clone();
@@ -309,7 +298,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                     let file = AsyncFileDialog::new().save_file().await;
 
                     let Some(file) = file else {
-                        sender.send(None).unwrap();
+                        sender.send(DialogResult::Canceled).unwrap();
                         return;
                     };
 
@@ -319,7 +308,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                         marker: PhantomData,
                     };
 
-                    sender.send(Some(event)).unwrap();
+                    sender.send(DialogResult::Single(event)).unwrap();
                 })
                 .detach();
         });
@@ -331,7 +320,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
     pub fn load_file<T: LoadContents>(self) {
         self.commands.add(|world: &mut World| {
             let sender = world
-                .get_resource::<StreamSender<Option<DialogFileLoaded<T>>>>()
+                .get_resource::<StreamSender<DialogResult<DialogFileLoaded<T>>>>()
                 .expect("FileDialogPlugin not initialized with 'with_load_file::<T>()'")
                 .0
                 .clone();
@@ -341,7 +330,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                     let file = AsyncFileDialog::new().pick_file().await;
 
                     let Some(file) = file else {
-                        sender.send(None).unwrap();
+                        sender.send(DialogResult::Canceled).unwrap();
                         return;
                     };
 
@@ -351,7 +340,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                         marker: PhantomData,
                     };
 
-                    sender.send(Some(event)).unwrap();
+                    sender.send(DialogResult::Single(event)).unwrap();
                 })
                 .detach();
         });
@@ -365,7 +354,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
     pub fn load_multiple_files<T: LoadContents>(self) {
         self.commands.add(|world: &mut World| {
             let sender = world
-                .get_resource::<StreamSender<Option<Vec<DialogFileLoaded<T>>>>>()
+                .get_resource::<StreamSender<DialogResult<DialogFileLoaded<T>>>>()
                 .expect("FileDialogPlugin not initialized with 'with_load_file::<T>()'")
                 .0
                 .clone();
@@ -375,7 +364,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                     let files = AsyncFileDialog::new().pick_files().await;
 
                     let Some(files) = files else {
-                        sender.send(None).unwrap();
+                        sender.send(DialogResult::Canceled).unwrap();
                         return;
                     };
 
@@ -388,7 +377,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                         });
                     }
 
-                    sender.send(Some(events)).unwrap();
+                    sender.send(DialogResult::Batch(events)).unwrap();
                 })
                 .detach();
         });
