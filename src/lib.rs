@@ -7,6 +7,7 @@
 //! - [`FileDialogPlugin::with_save_file::<T>`]
 //! - [`FileDialogPlugin::with_load_file::<T>`]
 //! - [`FileDialogPlugin::with_pick_directory::<T>`]
+//! - [`FileDialogPlugin::with_pick_file::<T>`]
 //!
 //! these functions can be called as many times as you want, the type parameter
 //! acts as marker that allows you to call:
@@ -18,11 +19,15 @@
 //! - [`FileDialog::pick_directory_path`]
 //! - [`FileDialog::pick_multiple_directory_paths`]
 //!   - for [`FileDialogPlugin::with_pick_directory::<T>`]
+//! - [`FileDialog::pick_file_path`]
+//! - [`FileDialog::pick_multiple_file_paths`]
+//!   - for [`FileDialogPlugin::with_pick_file::<T>`]
 //!
 //! with same type marker and then receive the result in
 //! - [`DialogFileSaved`] ([`EventReader<DialogFileSaved<T>>`])
 //! - [`DialogFileLoaded`] ([`EventReader<DialogFileLoaded<T>>`])
-//! - [`pick::DialogDirectoryPicked`] ([`EventReader<pick::DialogDirectoryPicked<T>>`])
+//! - [`DialogDirectoryPicked`] ([`EventReader<DialogDirectoryPicked<T>>`])
+//! - [`DialogFilePicked`] ([`EventReader<DialogFilePicked<T>>`])
 //!
 //! events
 //!
@@ -47,7 +52,12 @@
 //! meaning you get them all at once.
 //!
 //! The same thing applies to [`FileDialog::pick_multiple_directory_paths`] and
-//! [`EventReader<pick::DialogDirectoryPicked<T>>`].
+//! [`EventReader<DialogDirectoryPicked<T>>`] and also
+//! [`FileDialog::pick_multiple_file_paths`] and
+//! [`EventReader<DialogFilePicked<T>>`]
+//!
+//! If you want to be compatible with wasm, do not use any of the `pick_` apis,
+//! they are only for native platforms.
 
 use std::io;
 use std::marker::PhantomData;
