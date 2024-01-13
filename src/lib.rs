@@ -71,7 +71,10 @@ pub mod prelude {
     };
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub use crate::pick::{DialogDirectoryPickCanceled, DialogDirectoryPicked};
+    pub use crate::pick::{
+        DialogDirectoryPickCanceled, DialogDirectoryPicked, DialogFilePickCanceled,
+        DialogFilePicked,
+    };
 }
 
 /// Add this plugin to Bevy App to use the `FileDialog` resource in your system
