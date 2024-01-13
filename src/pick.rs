@@ -69,7 +69,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
         self.commands.add(|world: &mut World| {
             let sender = world
                 .get_resource::<StreamSender<DialogResult<DialogDirectoryPicked<T>>>>()
-                .expect("FileDialogPlugin not initialized with 'with_load_file::<T>()'")
+                .expect("FileDialogPlugin not initialized with 'with_pick_directory::<T>()'")
                 .0
                 .clone();
 
@@ -103,7 +103,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
         self.commands.add(|world: &mut World| {
             let sender = world
                 .get_resource::<StreamSender<DialogResult<DialogDirectoryPicked<T>>>>()
-                .expect("FileDialogPlugin not initialized with 'with_load_file::<T>()'")
+                .expect("FileDialogPlugin not initialized with 'with_pick_directory::<T>()'")
                 .0
                 .clone();
 
