@@ -63,6 +63,9 @@ use rfd::AsyncFileDialog;
 #[cfg(not(target_arch = "wasm32"))]
 mod pick;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub use pick::*;
+
 pub mod prelude {
     //! Prelude containing all types you need for saving/loading files with dialogs.
     pub use crate::{
@@ -71,7 +74,7 @@ pub mod prelude {
     };
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub use crate::pick::{
+    pub use crate::{
         DialogDirectoryPickCanceled, DialogDirectoryPicked, DialogFilePickCanceled,
         DialogFilePicked,
     };
