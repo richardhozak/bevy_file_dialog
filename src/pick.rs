@@ -30,7 +30,7 @@ impl<T: PickDirectoryPath> Default for DialogDirectoryPickCanceled<T> {
     }
 }
 
-/// Marker trait saying that data can be loaded from file
+/// Marker trait saying what directory path are we picking.
 pub trait PickDirectoryPath: Send + Sync + 'static {}
 
 impl<T> PickDirectoryPath for T where T: Send + Sync + 'static {}
