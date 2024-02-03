@@ -189,6 +189,12 @@ pub struct DialogFileSaved<T: SaveContents> {
     /// Result of save file system operation.
     pub result: io::Result<()>,
 
+    /// Path to saved file.
+    ///
+    /// Does not exist in wasm, you can use this on native platforms only.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub path: std::path::PathBuf,
+
     marker: PhantomData<T>,
 }
 
@@ -200,6 +206,12 @@ pub struct DialogFileLoaded<T: LoadContents> {
 
     /// Byte contents of loaded file.
     pub contents: Vec<u8>,
+
+    /// Path to loaded file.
+    ///
+    /// Does not exist in wasm, you can use this on native platforms only.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub path: std::path::PathBuf,
 
     marker: PhantomData<T>,
 }
@@ -310,6 +322,8 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                     let event = DialogFileSaved {
                         file_name: file.file_name(),
                         result: file.write(&contents).await,
+                        #[cfg(not(target_arch = "wasm32"))]
+                        path: file.path().to_path_buf(),
                         marker: PhantomData,
                     };
 
@@ -342,6 +356,8 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                     let event = DialogFileLoaded {
                         file_name: file.file_name(),
                         contents: file.read().await,
+                        #[cfg(not(target_arch = "wasm32"))]
+                        path: file.path().to_path_buf(),
                         marker: PhantomData,
                     };
 
@@ -378,6 +394,8 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                         events.push(DialogFileLoaded {
                             file_name: file.file_name(),
                             contents: file.read().await,
+                            #[cfg(not(target_arch = "wasm32"))]
+                            path: file.path().to_path_buf(),
                             marker: PhantomData,
                         });
                     }
