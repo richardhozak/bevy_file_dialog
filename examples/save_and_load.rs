@@ -32,19 +32,19 @@ fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
 }
 
-fn dialog(mut commands: Commands, keys: Res<Input<KeyCode>>) {
+fn dialog(mut commands: Commands, keys: Res<ButtonInput<KeyCode>>) {
     // Ctrl+S - save file
     // Ctrl+O - load file
 
     if keys.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight]) {
-        if keys.just_pressed(KeyCode::S) {
+        if keys.just_pressed(KeyCode::KeyS) {
             // save contents to selected file
             commands
                 .dialog()
                 .add_filter("Text", &["txt"])
                 .set_file_name("hello.txt")
                 .save_file::<TextFileContents>(b"hello".to_vec());
-        } else if keys.just_pressed(KeyCode::O) {
+        } else if keys.just_pressed(KeyCode::KeyO) {
             // read contents from selected file
             commands
                 .dialog()
