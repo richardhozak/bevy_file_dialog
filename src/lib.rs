@@ -173,9 +173,9 @@ fn handle_dialog_result<E: Event, C: Event + Default>(
 ) {
     for result in receiver.try_iter() {
         match result {
-            DialogResult::Single(event) => ev_done.send(event),
-            DialogResult::Batch(events) => ev_done.send_batch(events),
-            DialogResult::Canceled => ev_canceled.send_default(),
+            DialogResult::Single(event) => { ev_done.send(event); }
+            DialogResult::Batch(events) => { ev_done.send_batch(events); }
+            DialogResult::Canceled => { ev_canceled.send_default(); }
         }
     }
 }
