@@ -1,6 +1,6 @@
 [package]
 name = "bevy_file_dialog"
-version = "0.3.2"
+version = "0.4.0"
 edition = "2021"
 authors = ["Richard Hozák"]
 description = "File system dialogs for loading and saving files using the Bevy game engine"

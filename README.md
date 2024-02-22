@@ -109,4 +109,5 @@ More information in [rfd docs](https://docs.rs/rfd/0.12.1/rfd/index.html#linux--
 
 | bevy | bevy_file_dialog |
 | ---- | ---------------- |
+| 0.13 | 0.4.0            |
 | 0.12 | 0.1.0 - 0.3.1    |
