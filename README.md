@@ -43,7 +43,7 @@ fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
 }
 
-fn dialog(mut commands: Commands, keys: Res<Input<KeyCode>>) {
+fn dialog(mut commands: Commands, keys: Res<ButtonInput<KeyCode>>) {
     // Ctrl+S - save file
     // Ctrl+O - load file
 
