@@ -99,9 +99,9 @@ fn file_save_canceled(mut ev_canceled: EventReader<DialogFileSaveCanceled<TextFi
 
 ## File dialogs on Linux and BSDs
 
-You can use one of the two backends on linux to create file dialogs that is specified with features, either `gtk3` or `xdg-portal`. By default `bevy_file_dialog` uses the default provided by `rfd` which is `gtk3`. You can change this by specifying the correct features in your `Cargo.toml`:
+You can use one of the two backends on linux to create file dialogs that is specified with features, either `gtk3` or `xdg-portal`. By default `bevy_file_dialog` uses the default provided by `rfd` which is `xdg-portal`. You can change this by specifying the correct features in your `Cargo.toml`:
 ```
-bevy_file_dialog = { version = "*", default-features = false, features = ["xdg-portal"] }
+bevy_file_dialog = { version = "*", default-features = false, features = ["gtk3"] }
 ```
 More information in [rfd docs](https://docs.rs/rfd/0.12.1/rfd/index.html#linux--bsd-backends), the information there matches `bevy_file_dialog`.
 
@@ -109,5 +109,5 @@ More information in [rfd docs](https://docs.rs/rfd/0.12.1/rfd/index.html#linux--
 
 | bevy | bevy_file_dialog |
 | ---- | ---------------- |
-| 0.13 | 0.4.0            |
+| 0.13 | 0.4.0 - 0.5.0    |
 | 0.12 | 0.1.0 - 0.3.1    |

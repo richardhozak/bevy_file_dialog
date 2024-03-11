@@ -1,6 +1,6 @@
 [package]
 name = "bevy_file_dialog"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 authors = ["Richard Hozák"]
 description = "File system dialogs for loading and saving files using the Bevy game engine"
@@ -10,14 +10,18 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/richardhozak/bevy_file_dialog"
 
 [features]
-default = ["gtk3"]
+default = ["xdg-portal", "async-std"]
 # Use XDG Desktop Portal instead of GTK on Linux & BSDs
 xdg-portal = ["rfd/xdg-portal"]
+# Use async-std for xdg-portal
+async-std = ["rfd/async-std"]
+# Use tokio for xdg-portal
+tokio = ["rfd/tokio"]
 gtk3 = ["rfd/gtk3"]
 
 [dependencies]
-rfd = { version = "0.13", default-features = false }
-crossbeam-channel = "0.5.11"
+rfd = { version = "0.14", default-features = false }
+crossbeam-channel = "0.5"
 bevy_tasks = { version = "0.13", features = ["multi-threaded"] }
 bevy_app = { version = "0.13", default-features = false }
 bevy_ecs = { version = "0.13", default-features = false }
