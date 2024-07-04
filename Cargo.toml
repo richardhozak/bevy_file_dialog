@@ -22,11 +22,11 @@ gtk3 = ["rfd/gtk3"]
 [dependencies]
 rfd = { version = "0.14", default-features = false }
 crossbeam-channel = "0.5"
-bevy_tasks = { version = "0.13", features = ["multi-threaded"] }
-bevy_app = { version = "0.13", default-features = false }
-bevy_ecs = { version = "0.13", default-features = false }
-bevy_utils = "0.13"
-bevy_derive = "0.13"
+bevy_tasks = { version = "0.14", features = ["multi_threaded"] }
+bevy_app = { version = "0.14", default-features = false }
+bevy_ecs = { version = "0.14", default-features = false }
+bevy_utils = "0.14"
+bevy_derive = "0.14"
 
 [dev-dependencies]
-bevy = { version = "0.13", features = ["multi-threaded"] }
+bevy = { version = "0.14", features = ["multi_threaded"] }
