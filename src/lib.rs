@@ -173,9 +173,15 @@ fn handle_dialog_result<E: Event, C: Event + Default>(
 ) {
     for result in receiver.try_iter() {
         match result {
-            DialogResult::Single(event) => { ev_done.send(event); }
-            DialogResult::Batch(events) => { ev_done.send_batch(events); }
-            DialogResult::Canceled => { ev_canceled.send_default(); }
+            DialogResult::Single(event) => {
+                ev_done.send(event);
+            }
+            DialogResult::Batch(events) => {
+                ev_done.send_batch(events);
+            }
+            DialogResult::Canceled => {
+                ev_canceled.send_default();
+            }
         }
     }
 }
@@ -303,7 +309,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
     /// gets saved, the [`DialogFileSaved<T>`] gets sent. You can get read this event
     /// with Bevy's [`EventReader<DialogFileSaved<T>>`] system param.
     pub fn save_file<T: SaveContents>(self, contents: Vec<u8>) {
-        self.commands.add(|world: &mut World| {
+        self.commands.queue(|world: &mut World| {
             let sender = world
                 .get_resource::<StreamSender<DialogResult<DialogFileSaved<T>>>>()
                 .expect("FileDialogPlugin not initialized with 'with_save_file::<T>()'")
@@ -337,7 +343,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
     /// loaded, the [`DialogFileLoaded<T>`] gets sent. You can read this event with
     /// Bevy's [`EventReader<DialogFileLoaded<T>>`].
     pub fn load_file<T: LoadContents>(self) {
-        self.commands.add(|world: &mut World| {
+        self.commands.queue(|world: &mut World| {
             let sender = world
                 .get_resource::<StreamSender<DialogResult<DialogFileLoaded<T>>>>()
                 .expect("FileDialogPlugin not initialized with 'with_load_file::<T>()'")
@@ -373,7 +379,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
     /// by reading every event received with with Bevy's
     /// [`EventReader<DialogFileLoaded<T>>`].
     pub fn load_multiple_files<T: LoadContents>(self) {
-        self.commands.add(|world: &mut World| {
+        self.commands.queue(|world: &mut World| {
             let sender = world
                 .get_resource::<StreamSender<DialogResult<DialogFileLoaded<T>>>>()
                 .expect("FileDialogPlugin not initialized with 'with_load_file::<T>()'")
