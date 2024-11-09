@@ -114,7 +114,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
     ///
     /// Does not exist in `wasm32`.
     pub fn pick_directory_path<T: PickDirectoryPath>(self) {
-        self.commands.add(|world: &mut World| {
+        self.commands.queue(|world: &mut World| {
             let sender = world
                 .get_resource::<StreamSender<DialogResult<DialogDirectoryPicked<T>>>>()
                 .expect("FileDialogPlugin not initialized with 'with_pick_directory::<T>()'")
@@ -148,7 +148,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
     ///
     /// Does not exist in `wasm32`.
     pub fn pick_multiple_directory_paths<T: PickDirectoryPath>(self) {
-        self.commands.add(|world: &mut World| {
+        self.commands.queue(|world: &mut World| {
             let sender = world
                 .get_resource::<StreamSender<DialogResult<DialogDirectoryPicked<T>>>>()
                 .expect("FileDialogPlugin not initialized with 'with_pick_directory::<T>()'")
@@ -186,7 +186,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
     /// need to use [`FileDialog::load_file`], which does picking and loading in
     /// one step which is compatible with wasm.
     pub fn pick_file_path<T: PickFilePath>(self) {
-        self.commands.add(|world: &mut World| {
+        self.commands.queue(|world: &mut World| {
             let sender = world
                 .get_resource::<StreamSender<DialogResult<DialogFilePicked<T>>>>()
                 .expect("FileDialogPlugin not initialized with 'with_pick_file::<T>()'")
@@ -222,7 +222,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
     /// need to use [`FileDialog::load_multiple_files`], which does picking and
     /// loading in one step which is compatible with wasm.
     pub fn pick_multiple_file_paths<T: PickDirectoryPath>(self) {
-        self.commands.add(|world: &mut World| {
+        self.commands.queue(|world: &mut World| {
             let sender = world
                 .get_resource::<StreamSender<DialogResult<DialogFilePicked<T>>>>()
                 .expect("FileDialogPlugin not initialized with 'with_pick_file::<T>()'")
