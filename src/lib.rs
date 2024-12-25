@@ -67,6 +67,7 @@ use bevy_app::prelude::*;
 use bevy_derive::Deref;
 use bevy_ecs::prelude::*;
 use bevy_tasks::prelude::*;
+use bevy_winit::{EventLoopProxy, EventLoopProxyWrapper, WakeUp};
 use crossbeam_channel::{bounded, Receiver, Sender};
 use rfd::AsyncFileDialog;
 
@@ -316,9 +317,14 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                 .0
                 .clone();
 
+            let event_loop_proxy = world
+                .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                .map(|proxy| EventLoopProxy::clone(&**proxy));
+
             AsyncComputeTaskPool::get()
                 .spawn(async move {
                     let file = self.dialog.save_file().await;
+                    let _wake_up = event_loop_proxy.as_ref().map(|proxy| WakeUpOnDrop(proxy));
 
                     let Some(file) = file else {
                         sender.send(DialogResult::Canceled).unwrap();
@@ -350,9 +356,14 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                 .0
                 .clone();
 
+            let event_loop_proxy = world
+                .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                .map(|proxy| EventLoopProxy::clone(&**proxy));
+
             AsyncComputeTaskPool::get()
                 .spawn(async move {
                     let file = self.dialog.pick_file().await;
+                    let _wake_up = event_loop_proxy.as_ref().map(|proxy| WakeUpOnDrop(proxy));
 
                     let Some(file) = file else {
                         sender.send(DialogResult::Canceled).unwrap();
@@ -386,9 +397,14 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                 .0
                 .clone();
 
+            let event_loop_proxy = world
+                .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                .map(|proxy| EventLoopProxy::clone(&**proxy));
+
             AsyncComputeTaskPool::get()
                 .spawn(async move {
                     let files = AsyncFileDialog::new().pick_files().await;
+                    let _wake_up = event_loop_proxy.as_ref().map(|proxy| WakeUpOnDrop(proxy));
 
                     let Some(files) = files else {
                         sender.send(DialogResult::Canceled).unwrap();
@@ -426,5 +442,15 @@ impl<'w, 's> FileDialogExt<'w, 's> for Commands<'w, 's> {
             commands: self,
             dialog: AsyncFileDialog::new(),
         }
+    }
+}
+
+/// A struct to send a WakeUp event to winit when dropped (i.e., when the scope
+/// ends).
+struct WakeUpOnDrop<'a>(&'a EventLoopProxy<WakeUp>);
+
+impl Drop for WakeUpOnDrop<'_> {
+    fn drop(&mut self) {
+        self.0.send_event(WakeUp).unwrap();
     }
 }

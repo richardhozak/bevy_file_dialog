@@ -4,11 +4,13 @@ use std::path::PathBuf;
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
 use bevy_tasks::prelude::*;
+use bevy_winit::{EventLoopProxy, EventLoopProxyWrapper, WakeUp};
 use crossbeam_channel::bounded;
 use rfd::AsyncFileDialog;
 
 use crate::{
     handle_dialog_result, DialogResult, FileDialog, FileDialogPlugin, StreamReceiver, StreamSender,
+    WakeUpOnDrop,
 };
 
 /// Event that gets sent when directory path gets selected from file system.
@@ -121,9 +123,14 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                 .0
                 .clone();
 
+            let event_loop_proxy = world
+                .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                .map(|proxy| EventLoopProxy::clone(&**proxy));
+
             AsyncComputeTaskPool::get()
                 .spawn(async move {
                     let file = self.dialog.pick_folder().await;
+                    let _wake_up = event_loop_proxy.as_ref().map(|proxy| WakeUpOnDrop(proxy));
 
                     let Some(file) = file else {
                         sender.send(DialogResult::Canceled).unwrap();
@@ -155,9 +162,14 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                 .0
                 .clone();
 
+            let event_loop_proxy = world
+                .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                .map(|proxy| EventLoopProxy::clone(&**proxy));
+
             AsyncComputeTaskPool::get()
                 .spawn(async move {
                     let files = AsyncFileDialog::new().pick_folders().await;
+                    let _wake_up = event_loop_proxy.as_ref().map(|proxy| WakeUpOnDrop(proxy));
 
                     let Some(files) = files else {
                         sender.send(DialogResult::Canceled).unwrap();
@@ -193,9 +205,14 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                 .0
                 .clone();
 
+            let event_loop_proxy = world
+                .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                .map(|proxy| EventLoopProxy::clone(&**proxy));
+
             AsyncComputeTaskPool::get()
                 .spawn(async move {
                     let file = self.dialog.pick_file().await;
+                    let _wake_up = event_loop_proxy.as_ref().map(|proxy| WakeUpOnDrop(proxy));
 
                     let Some(file) = file else {
                         sender.send(DialogResult::Canceled).unwrap();
@@ -229,9 +246,14 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
                 .0
                 .clone();
 
+            let event_loop_proxy = world
+                .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                .map(|proxy| EventLoopProxy::clone(&**proxy));
+
             AsyncComputeTaskPool::get()
                 .spawn(async move {
                     let files = AsyncFileDialog::new().pick_files().await;
+                    let _wake_up = event_loop_proxy.as_ref().map(|proxy| WakeUpOnDrop(proxy));
 
                     let Some(files) = files else {
                         sender.send(DialogResult::Canceled).unwrap();
