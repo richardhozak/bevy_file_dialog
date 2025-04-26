@@ -109,7 +109,7 @@ impl FileDialogPlugin {
     }
 }
 
-impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
+impl FileDialog<'_, '_, '_> {
     /// Open pick directory dialog and send [`DialogDirectoryPicked<T>`]
     /// event. You can read this event with Bevy's
     /// [`EventReader<DialogDirectoryPicked<T>>`].
@@ -130,7 +130,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
             AsyncComputeTaskPool::get()
                 .spawn(async move {
                     let file = self.dialog.pick_folder().await;
-                    let _wake_up = event_loop_proxy.as_ref().map(|proxy| WakeUpOnDrop(proxy));
+                    let _wake_up = event_loop_proxy.as_ref().map(WakeUpOnDrop);
 
                     let Some(file) = file else {
                         sender.send(DialogResult::Canceled).unwrap();
@@ -169,7 +169,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
             AsyncComputeTaskPool::get()
                 .spawn(async move {
                     let files = AsyncFileDialog::new().pick_folders().await;
-                    let _wake_up = event_loop_proxy.as_ref().map(|proxy| WakeUpOnDrop(proxy));
+                    let _wake_up = event_loop_proxy.as_ref().map(WakeUpOnDrop);
 
                     let Some(files) = files else {
                         sender.send(DialogResult::Canceled).unwrap();
@@ -212,7 +212,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
             AsyncComputeTaskPool::get()
                 .spawn(async move {
                     let file = self.dialog.pick_file().await;
-                    let _wake_up = event_loop_proxy.as_ref().map(|proxy| WakeUpOnDrop(proxy));
+                    let _wake_up = event_loop_proxy.as_ref().map(WakeUpOnDrop);
 
                     let Some(file) = file else {
                         sender.send(DialogResult::Canceled).unwrap();
@@ -253,7 +253,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
             AsyncComputeTaskPool::get()
                 .spawn(async move {
                     let files = AsyncFileDialog::new().pick_files().await;
-                    let _wake_up = event_loop_proxy.as_ref().map(|proxy| WakeUpOnDrop(proxy));
+                    let _wake_up = event_loop_proxy.as_ref().map(WakeUpOnDrop);
 
                     let Some(files) = files else {
                         sender.send(DialogResult::Canceled).unwrap();
