@@ -29,7 +29,7 @@ fn main() {
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2d::default());
+    commands.spawn(Camera2d);
 }
 
 fn dialog(mut commands: Commands, keys: Res<ButtonInput<KeyCode>>) {

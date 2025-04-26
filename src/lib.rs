@@ -175,13 +175,13 @@ fn handle_dialog_result<E: Event, C: Event + Default>(
     for result in receiver.try_iter() {
         match result {
             DialogResult::Single(event) => {
-                ev_done.send(event);
+                ev_done.write(event);
             }
             DialogResult::Batch(events) => {
-                ev_done.send_batch(events);
+                ev_done.write_batch(events);
             }
             DialogResult::Canceled => {
-                ev_canceled.send_default();
+                ev_canceled.write_default();
             }
         }
     }
@@ -263,7 +263,7 @@ pub struct FileDialog<'w, 's, 'a> {
     dialog: AsyncFileDialog,
 }
 
-impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
+impl FileDialog<'_, '_, '_> {
     /// Add file extension filter.
     ///
     /// Takes in the name of the filter, and list of extensions
@@ -324,7 +324,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
             AsyncComputeTaskPool::get()
                 .spawn(async move {
                     let file = self.dialog.save_file().await;
-                    let _wake_up = event_loop_proxy.as_ref().map(|proxy| WakeUpOnDrop(proxy));
+                    let _wake_up = event_loop_proxy.as_ref().map(WakeUpOnDrop);
 
                     let Some(file) = file else {
                         sender.send(DialogResult::Canceled).unwrap();
@@ -363,7 +363,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
             AsyncComputeTaskPool::get()
                 .spawn(async move {
                     let file = self.dialog.pick_file().await;
-                    let _wake_up = event_loop_proxy.as_ref().map(|proxy| WakeUpOnDrop(proxy));
+                    let _wake_up = event_loop_proxy.as_ref().map(WakeUpOnDrop);
 
                     let Some(file) = file else {
                         sender.send(DialogResult::Canceled).unwrap();
@@ -404,7 +404,7 @@ impl<'w, 's, 'a> FileDialog<'w, 's, 'a> {
             AsyncComputeTaskPool::get()
                 .spawn(async move {
                     let files = AsyncFileDialog::new().pick_files().await;
-                    let _wake_up = event_loop_proxy.as_ref().map(|proxy| WakeUpOnDrop(proxy));
+                    let _wake_up = event_loop_proxy.as_ref().map(WakeUpOnDrop);
 
                     let Some(files) = files else {
                         sender.send(DialogResult::Canceled).unwrap();

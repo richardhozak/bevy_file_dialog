@@ -31,7 +31,7 @@ fn dialog_canceled(
 ) {
     for _ in ev_canceled.read() {
         eprintln!("Canceled dialog for printing file name, exiting app");
-        ev_exit.send_default();
+        ev_exit.write_default();
     }
 }
 
