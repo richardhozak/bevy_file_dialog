@@ -20,7 +20,7 @@ fn save(mut commands: Commands) {
         .save_file::<ByteContents>(b"hello".to_vec());
 }
 
-fn file_saved(mut ev_saved: EventReader<DialogFileSaved<ByteContents>>) {
+fn file_saved(mut ev_saved: MessageReader<DialogFileSaved<ByteContents>>) {
     for ev in ev_saved.read() {
         match ev.result {
             Ok(_) => eprintln!("File {} successfully saved", ev.file_name),

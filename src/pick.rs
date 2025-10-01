@@ -14,7 +14,7 @@ use crate::{
 };
 
 /// Event that gets sent when directory path gets selected from file system.
-#[derive(Event)]
+#[derive(Message)]
 pub struct DialogDirectoryPicked<T: PickDirectoryPath> {
     /// Path of picked directory.
     pub path: PathBuf,
@@ -23,7 +23,7 @@ pub struct DialogDirectoryPicked<T: PickDirectoryPath> {
 }
 
 /// Event that gets sent when user closes pick directory dialog without picking any directory.
-#[derive(Event)]
+#[derive(Message)]
 pub struct DialogDirectoryPickCanceled<T: PickDirectoryPath>(PhantomData<T>);
 
 impl<T: PickDirectoryPath> Default for DialogDirectoryPickCanceled<T> {
@@ -38,7 +38,7 @@ pub trait PickDirectoryPath: Send + Sync + 'static {}
 impl<T> PickDirectoryPath for T where T: Send + Sync + 'static {}
 
 /// Event that gets sent when file path gets selected from file system.
-#[derive(Event)]
+#[derive(Message)]
 pub struct DialogFilePicked<T: PickFilePath> {
     /// Path of picked file.
     pub path: PathBuf,
@@ -47,7 +47,7 @@ pub struct DialogFilePicked<T: PickFilePath> {
 }
 
 /// Event that gets sent when user closes pick file dialog without picking any file.
-#[derive(Event)]
+#[derive(Message)]
 pub struct DialogFilePickCanceled<T: PickFilePath>(PhantomData<T>);
 
 impl<T: PickFilePath> Default for DialogFilePickCanceled<T> {
@@ -74,8 +74,8 @@ impl FileDialogPlugin {
             let (tx, rx) = bounded::<DialogResult<DialogDirectoryPicked<T>>>(1);
             app.insert_resource(StreamSender(tx));
             app.insert_resource(StreamReceiver(rx));
-            app.add_event::<DialogDirectoryPicked<T>>();
-            app.add_event::<DialogDirectoryPickCanceled<T>>();
+            app.add_message::<DialogDirectoryPicked<T>>();
+            app.add_message::<DialogDirectoryPickCanceled<T>>();
             app.add_systems(
                 First,
                 handle_dialog_result::<DialogDirectoryPicked<T>, DialogDirectoryPickCanceled<T>>,
@@ -98,8 +98,8 @@ impl FileDialogPlugin {
             let (tx, rx) = bounded::<DialogResult<DialogFilePicked<T>>>(1);
             app.insert_resource(StreamSender(tx));
             app.insert_resource(StreamReceiver(rx));
-            app.add_event::<DialogFilePicked<T>>();
-            app.add_event::<DialogFilePickCanceled<T>>();
+            app.add_message::<DialogFilePicked<T>>();
+            app.add_message::<DialogFilePickCanceled<T>>();
             app.add_systems(
                 First,
                 handle_dialog_result::<DialogFilePicked<T>, DialogFilePickCanceled<T>>,

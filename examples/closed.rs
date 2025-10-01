@@ -26,8 +26,8 @@ fn load(mut commands: Commands) {
 }
 
 fn dialog_canceled(
-    mut ev_canceled: EventReader<DialogFileLoadCanceled<PrintFileName>>,
-    mut ev_exit: EventWriter<AppExit>,
+    mut ev_canceled: MessageReader<DialogFileLoadCanceled<PrintFileName>>,
+    mut ev_exit: MessageWriter<AppExit>,
 ) {
     for _ in ev_canceled.read() {
         eprintln!("Canceled dialog for printing file name, exiting app");
@@ -37,7 +37,7 @@ fn dialog_canceled(
 
 fn file_selected(
     mut commands: Commands,
-    mut ev_loaded: EventReader<DialogFileLoaded<PrintFileName>>,
+    mut ev_loaded: MessageReader<DialogFileLoaded<PrintFileName>>,
 ) {
     for ev in ev_loaded.read() {
         eprintln!("Selected {}", ev.file_name);
