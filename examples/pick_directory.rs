@@ -25,7 +25,7 @@ fn pick(mut commands: Commands) {
         .pick_directory_path::<PrintDirectoryPath>();
 }
 
-fn directory_picked(mut ev_picked: EventReader<DialogDirectoryPicked<PrintDirectoryPath>>) {
+fn directory_picked(mut ev_picked: MessageReader<DialogDirectoryPicked<PrintDirectoryPath>>) {
     for ev in ev_picked.read() {
         eprintln!("Directory picked, path {:?}", ev.path);
     }

@@ -54,7 +54,7 @@ fn dialog(mut commands: Commands, keys: Res<ButtonInput<KeyCode>>) {
     }
 }
 
-fn file_loaded(mut ev_loaded: EventReader<DialogFileLoaded<TextFileContents>>) {
+fn file_loaded(mut ev_loaded: MessageReader<DialogFileLoaded<TextFileContents>>) {
     for ev in ev_loaded.read() {
         eprintln!(
             "Loaded file {} with contents '{}'",
@@ -64,13 +64,13 @@ fn file_loaded(mut ev_loaded: EventReader<DialogFileLoaded<TextFileContents>>) {
     }
 }
 
-fn file_load_canceled(mut ev_canceled: EventReader<DialogFileLoadCanceled<TextFileContents>>) {
+fn file_load_canceled(mut ev_canceled: MessageReader<DialogFileLoadCanceled<TextFileContents>>) {
     for _ in ev_canceled.read() {
         eprintln!("Text file content load canceled");
     }
 }
 
-fn file_saved(mut ev_saved: EventReader<DialogFileSaved<TextFileContents>>) {
+fn file_saved(mut ev_saved: MessageReader<DialogFileSaved<TextFileContents>>) {
     for ev in ev_saved.read() {
         match ev.result {
             Ok(_) => eprintln!("File {} successfully saved", ev.file_name),
@@ -79,7 +79,7 @@ fn file_saved(mut ev_saved: EventReader<DialogFileSaved<TextFileContents>>) {
     }
 }
 
-fn file_save_canceled(mut ev_canceled: EventReader<DialogFileSaveCanceled<TextFileContents>>) {
+fn file_save_canceled(mut ev_canceled: MessageReader<DialogFileSaveCanceled<TextFileContents>>) {
     for _ in ev_canceled.read() {
         eprintln!("Text file content save canceled");
     }

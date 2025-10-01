@@ -26,7 +26,7 @@ fn pick(mut commands: Commands) {
     commands.dialog().pick_file_path::<PrintFilePath>();
 }
 
-fn file_picked(mut ev_picked: EventReader<DialogFilePicked<PrintFilePath>>) {
+fn file_picked(mut ev_picked: MessageReader<DialogFilePicked<PrintFilePath>>) {
     for ev in ev_picked.read() {
         eprintln!("File picked, path {:?}", ev.path);
     }

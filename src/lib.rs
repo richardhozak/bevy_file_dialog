@@ -125,8 +125,8 @@ impl FileDialogPlugin {
             let (tx, rx) = bounded::<DialogResult<DialogFileSaved<T>>>(1);
             app.insert_resource(StreamSender(tx));
             app.insert_resource(StreamReceiver(rx));
-            app.add_event::<DialogFileSaved<T>>();
-            app.add_event::<DialogFileSaveCanceled<T>>();
+            app.add_message::<DialogFileSaved<T>>();
+            app.add_message::<DialogFileSaveCanceled<T>>();
             app.add_systems(
                 First,
                 handle_dialog_result::<DialogFileSaved<T>, DialogFileSaveCanceled<T>>,
@@ -144,8 +144,8 @@ impl FileDialogPlugin {
             let (tx, rx) = bounded::<DialogResult<DialogFileLoaded<T>>>(1);
             app.insert_resource(StreamSender(tx));
             app.insert_resource(StreamReceiver(rx));
-            app.add_event::<DialogFileLoaded<T>>();
-            app.add_event::<DialogFileLoadCanceled<T>>();
+            app.add_message::<DialogFileLoaded<T>>();
+            app.add_message::<DialogFileLoadCanceled<T>>();
             app.add_systems(
                 First,
                 handle_dialog_result::<DialogFileLoaded<T>, DialogFileLoadCanceled<T>>,
@@ -167,10 +167,10 @@ enum DialogResult<T> {
     Canceled,
 }
 
-fn handle_dialog_result<E: Event, C: Event + Default>(
+fn handle_dialog_result<E: Message, C: Message + Default>(
     receiver: Res<StreamReceiver<DialogResult<E>>>,
-    mut ev_done: EventWriter<E>,
-    mut ev_canceled: EventWriter<C>,
+    mut ev_done: MessageWriter<E>,
+    mut ev_canceled: MessageWriter<C>,
 ) {
     for result in receiver.try_iter() {
         match result {
@@ -188,7 +188,7 @@ fn handle_dialog_result<E: Event, C: Event + Default>(
 }
 
 /// Event that gets sent when file contents get saved to file system.
-#[derive(Event)]
+#[derive(Message)]
 pub struct DialogFileSaved<T: SaveContents> {
     /// Name of saved file.
     pub file_name: String,
@@ -206,7 +206,7 @@ pub struct DialogFileSaved<T: SaveContents> {
 }
 
 /// Event that gets sent when file contents get loaded from file system.
-#[derive(Event)]
+#[derive(Message)]
 pub struct DialogFileLoaded<T: LoadContents> {
     /// Name of loaded file.
     pub file_name: String,
@@ -224,7 +224,7 @@ pub struct DialogFileLoaded<T: LoadContents> {
 }
 
 /// Event that gets sent when user closes file load dialog without picking any file.
-#[derive(Event)]
+#[derive(Message)]
 pub struct DialogFileLoadCanceled<T: LoadContents>(PhantomData<T>);
 
 impl<T: LoadContents> Default for DialogFileLoadCanceled<T> {
@@ -234,7 +234,7 @@ impl<T: LoadContents> Default for DialogFileLoadCanceled<T> {
 }
 
 /// Event that gets sent when user closes file save dialog without saving any file.
-#[derive(Event)]
+#[derive(Message)]
 pub struct DialogFileSaveCanceled<T: SaveContents>(PhantomData<T>);
 
 impl<T: SaveContents> Default for DialogFileSaveCanceled<T> {

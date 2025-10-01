@@ -25,7 +25,7 @@ fn pick(mut commands: Commands) {
         .pick_multiple_directory_paths::<PrintDirectoryPath>();
 }
 
-fn directory_picked(mut ev_picked: EventReader<DialogDirectoryPicked<PrintDirectoryPath>>) {
+fn directory_picked(mut ev_picked: MessageReader<DialogDirectoryPicked<PrintDirectoryPath>>) {
     if ev_picked.is_empty() {
         return;
     }

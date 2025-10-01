@@ -18,7 +18,7 @@ fn load(mut commands: Commands) {
     commands.dialog().load_file::<ByteLenContents>();
 }
 
-fn file_loaded(mut ev_loaded: EventReader<DialogFileLoaded<ByteLenContents>>) {
+fn file_loaded(mut ev_loaded: MessageReader<DialogFileLoaded<ByteLenContents>>) {
     for ev in ev_loaded.read() {
         eprintln!(
             "Loaded file {} with size of {} bytes",

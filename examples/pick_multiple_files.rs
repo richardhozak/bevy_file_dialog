@@ -28,7 +28,7 @@ fn pick(mut commands: Commands) {
         .pick_multiple_file_paths::<PrintFilePath>();
 }
 
-fn file_picked(mut ev_picked: EventReader<DialogFilePicked<PrintFilePath>>) {
+fn file_picked(mut ev_picked: MessageReader<DialogFilePicked<PrintFilePath>>) {
     if ev_picked.is_empty() {
         return;
     }
