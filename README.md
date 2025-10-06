@@ -109,7 +109,8 @@ More information in [rfd docs](https://docs.rs/rfd/0.12.1/rfd/index.html#linux--
 
 | bevy | bevy_file_dialog |
 | ---- | ---------------- |
-| 0.17 | 0.8.0            |
+| 0.17 | 0.9.0            |
+| 0.16 | 0.8.0            |
 | 0.14 | 0.6.0            |
 | 0.13 | 0.4.0 - 0.5.0    |
 | 0.12 | 0.1.0 - 0.3.1    |
