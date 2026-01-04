@@ -15,7 +15,7 @@ fn main() {
 struct ByteLenContents;
 
 fn load(mut commands: Commands) {
-    commands.dialog().load_file::<ByteLenContents>();
+    commands.dialog().load_file(ByteLenContents);
 }
 
 fn file_loaded(mut ev_loaded: MessageReader<DialogFileLoaded<ByteLenContents>>) {

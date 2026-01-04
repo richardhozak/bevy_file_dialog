@@ -22,7 +22,7 @@ fn main() {
 struct PrintFileName;
 
 fn load(mut commands: Commands) {
-    commands.dialog().load_file::<PrintFileName>();
+    commands.dialog().load_file(PrintFileName);
 }
 
 fn dialog_canceled(
@@ -42,6 +42,6 @@ fn file_selected(
     for ev in ev_loaded.read() {
         eprintln!("Selected {}", ev.file_name);
         eprintln!("Select another or close the dialog...");
-        commands.dialog().load_file::<PrintFileName>();
+        commands.dialog().load_file(PrintFileName);
     }
 }

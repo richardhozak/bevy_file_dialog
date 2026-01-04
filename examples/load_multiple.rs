@@ -12,10 +12,11 @@ fn main() {
         .run();
 }
 
+#[derive(Clone)]
 struct ByteLenContents;
 
 fn load(mut commands: Commands) {
-    commands.dialog().load_multiple_files::<ByteLenContents>();
+    commands.dialog().load_multiple_files(ByteLenContents);
 }
 
 fn files_loaded(mut ev_loaded: MessageReader<DialogFileLoaded<ByteLenContents>>) {

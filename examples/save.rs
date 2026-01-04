@@ -15,9 +15,7 @@ fn main() {
 struct ByteContents;
 
 fn save(mut commands: Commands) {
-    commands
-        .dialog()
-        .save_file::<ByteContents>(b"hello".to_vec());
+    commands.dialog().save_file(b"hello".to_vec(), ByteContents);
 }
 
 fn file_saved(mut ev_saved: MessageReader<DialogFileSaved<ByteContents>>) {

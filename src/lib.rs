@@ -42,7 +42,7 @@
 //!         .set_directory("/")
 //!         .set_title("My Save Dialog")
 //!         .add_filter("Text", &["txt"])
-//!         .save_file::<MySaveDialog>();
+//!         .save_file(MySaveDialog);
 //! }
 //! ```
 //!
@@ -117,7 +117,7 @@ impl FileDialogPlugin {
     }
 
     /// Allow saving file contents. This allows you to call
-    ///  `dialog().save_file::<T>()` on [`Commands`]. For each `with_save_file` you
+    ///  `dialog().save_file(T)` on [`Commands`]. For each `with_save_file` you
     /// will receive [`DialogFileSaved<T>`] in your systems when `save_file`
     /// completes.
     pub fn with_save_file<T: SaveContents>(mut self) -> Self {
@@ -136,7 +136,7 @@ impl FileDialogPlugin {
     }
 
     /// Allow loading file contents. This allows you to call
-    ///  `dialog().load_file::<T>()` on [`Commands`]. For each `with_load_file` you
+    ///  `dialog().load_file(T)` on [`Commands`]. For each `with_load_file` you
     /// will receive [`DialogFileLoaded<T>`] in your systems when `load_file`
     /// completes.
     pub fn with_load_file<T: LoadContents>(mut self) -> Self {
@@ -202,7 +202,8 @@ pub struct DialogFileSaved<T: SaveContents> {
     #[cfg(not(target_arch = "wasm32"))]
     pub path: std::path::PathBuf,
 
-    marker: PhantomData<T>,
+    /// Passed-in user data
+    pub data: T,
 }
 
 /// Event that gets sent when file contents get loaded from file system.
@@ -220,7 +221,8 @@ pub struct DialogFileLoaded<T: LoadContents> {
     #[cfg(not(target_arch = "wasm32"))]
     pub path: std::path::PathBuf,
 
-    marker: PhantomData<T>,
+    /// Passed-in user data
+    pub data: T,
 }
 
 /// Event that gets sent when user closes file load dialog without picking any file.
@@ -309,7 +311,7 @@ impl FileDialog<'_, '_, '_> {
     /// Open save file dialog and save the `contents` to that file. When file
     /// gets saved, the [`DialogFileSaved<T>`] gets sent. You can get read this event
     /// with Bevy's [`EventReader<DialogFileSaved<T>>`] system param.
-    pub fn save_file<T: SaveContents>(self, contents: Vec<u8>) {
+    pub fn save_file<T: SaveContents>(self, contents: Vec<u8>, data: T) {
         self.commands.queue(|world: &mut World| {
             let sender = world
                 .get_resource::<StreamSender<DialogResult<DialogFileSaved<T>>>>()
@@ -336,7 +338,7 @@ impl FileDialog<'_, '_, '_> {
                         result: file.write(&contents).await,
                         #[cfg(not(target_arch = "wasm32"))]
                         path: file.path().to_path_buf(),
-                        marker: PhantomData,
+                        data,
                     };
 
                     sender.send(DialogResult::Single(event)).unwrap();
@@ -348,7 +350,7 @@ impl FileDialog<'_, '_, '_> {
     /// Open pick file dialog and load its contents. When file contents get
     /// loaded, the [`DialogFileLoaded<T>`] gets sent. You can read this event with
     /// Bevy's [`EventReader<DialogFileLoaded<T>>`].
-    pub fn load_file<T: LoadContents>(self) {
+    pub fn load_file<T: LoadContents>(self, data: T) {
         self.commands.queue(|world: &mut World| {
             let sender = world
                 .get_resource::<StreamSender<DialogResult<DialogFileLoaded<T>>>>()
@@ -375,7 +377,7 @@ impl FileDialog<'_, '_, '_> {
                         contents: file.read().await,
                         #[cfg(not(target_arch = "wasm32"))]
                         path: file.path().to_path_buf(),
-                        marker: PhantomData,
+                        data,
                     };
 
                     sender.send(DialogResult::Single(event)).unwrap();
@@ -389,7 +391,7 @@ impl FileDialog<'_, '_, '_> {
     /// [`DialogFileLoaded<T>`] gets sent for each file. You can read each file
     /// by reading every event received with with Bevy's
     /// [`EventReader<DialogFileLoaded<T>>`].
-    pub fn load_multiple_files<T: LoadContents>(self) {
+    pub fn load_multiple_files<T: LoadContents + Clone>(self, data: T) {
         self.commands.queue(|world: &mut World| {
             let sender = world
                 .get_resource::<StreamSender<DialogResult<DialogFileLoaded<T>>>>()
@@ -412,13 +414,13 @@ impl FileDialog<'_, '_, '_> {
                     };
 
                     let mut events = Vec::new();
-                    for file in files {
+                    for (data, file) in vec![data; files.len()].into_iter().zip(files.into_iter()) {
                         events.push(DialogFileLoaded {
                             file_name: file.file_name(),
                             contents: file.read().await,
                             #[cfg(not(target_arch = "wasm32"))]
                             path: file.path().to_path_buf(),
-                            marker: PhantomData,
+                            data,
                         });
                     }
 

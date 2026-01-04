@@ -19,7 +19,8 @@ pub struct DialogDirectoryPicked<T: PickDirectoryPath> {
     /// Path of picked directory.
     pub path: PathBuf,
 
-    marker: PhantomData<T>,
+    /// Passed-in user data
+    pub data: T,
 }
 
 /// Event that gets sent when user closes pick directory dialog without picking any directory.
@@ -43,7 +44,8 @@ pub struct DialogFilePicked<T: PickFilePath> {
     /// Path of picked file.
     pub path: PathBuf,
 
-    marker: PhantomData<T>,
+    /// Passed-in user data
+    pub data: T,
 }
 
 /// Event that gets sent when user closes pick file dialog without picking any file.
@@ -115,7 +117,7 @@ impl FileDialog<'_, '_, '_> {
     /// [`EventReader<DialogDirectoryPicked<T>>`].
     ///
     /// Does not exist in `wasm32`.
-    pub fn pick_directory_path<T: PickDirectoryPath>(self) {
+    pub fn pick_directory_path<T: PickDirectoryPath>(self, data: T) {
         self.commands.queue(|world: &mut World| {
             let sender = world
                 .get_resource::<StreamSender<DialogResult<DialogDirectoryPicked<T>>>>()
@@ -139,7 +141,7 @@ impl FileDialog<'_, '_, '_> {
 
                     let event = DialogDirectoryPicked {
                         path: file.path().to_path_buf(),
-                        marker: PhantomData,
+                        data,
                     };
 
                     sender.send(DialogResult::Single(event)).unwrap();
@@ -154,7 +156,7 @@ impl FileDialog<'_, '_, '_> {
     /// [`EventReader<DialogDirectoryPicked<T>>`].
     ///
     /// Does not exist in `wasm32`.
-    pub fn pick_multiple_directory_paths<T: PickDirectoryPath>(self) {
+    pub fn pick_multiple_directory_paths<T: PickDirectoryPath + Clone>(self, data: T) {
         self.commands.queue(|world: &mut World| {
             let sender = world
                 .get_resource::<StreamSender<DialogResult<DialogDirectoryPicked<T>>>>()
@@ -176,11 +178,12 @@ impl FileDialog<'_, '_, '_> {
                         return;
                     };
 
-                    let events = files
+                    let events = vec![data; files.len()]
                         .into_iter()
-                        .map(|file| DialogDirectoryPicked {
+                        .zip(files)
+                        .map(|(data, file)| DialogDirectoryPicked {
                             path: file.path().to_path_buf(),
-                            marker: PhantomData,
+                            data,
                         })
                         .collect();
 
@@ -197,7 +200,7 @@ impl FileDialog<'_, '_, '_> {
     /// Does not exist in `wasm32`. If you want cross-platform solution, you
     /// need to use [`FileDialog::load_file`], which does picking and loading in
     /// one step which is compatible with wasm.
-    pub fn pick_file_path<T: PickFilePath>(self) {
+    pub fn pick_file_path<T: PickFilePath>(self, data: T) {
         self.commands.queue(|world: &mut World| {
             let sender = world
                 .get_resource::<StreamSender<DialogResult<DialogFilePicked<T>>>>()
@@ -221,7 +224,7 @@ impl FileDialog<'_, '_, '_> {
 
                     let event = DialogFilePicked {
                         path: file.path().to_path_buf(),
-                        marker: PhantomData,
+                        data,
                     };
 
                     sender.send(DialogResult::Single(event)).unwrap();
@@ -238,7 +241,7 @@ impl FileDialog<'_, '_, '_> {
     /// Does not exist in `wasm32`. If you want cross-platform solution, you
     /// need to use [`FileDialog::load_multiple_files`], which does picking and
     /// loading in one step which is compatible with wasm.
-    pub fn pick_multiple_file_paths<T: PickDirectoryPath>(self) {
+    pub fn pick_multiple_file_paths<T: PickDirectoryPath + Clone>(self, data: T) {
         self.commands.queue(|world: &mut World| {
             let sender = world
                 .get_resource::<StreamSender<DialogResult<DialogFilePicked<T>>>>()
@@ -260,11 +263,12 @@ impl FileDialog<'_, '_, '_> {
                         return;
                     };
 
-                    let events = files
+                    let events = vec![data; files.len()]
                         .into_iter()
-                        .map(|file| DialogFilePicked {
+                        .zip(files)
+                        .map(|(data, file)| DialogFilePicked {
                             path: file.path().to_path_buf(),
-                            marker: PhantomData,
+                            data,
                         })
                         .collect();
 
