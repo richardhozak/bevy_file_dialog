@@ -17,12 +17,13 @@ fn main() {
         .run();
 }
 
+#[derive(Clone)]
 struct PrintDirectoryPath;
 
 fn pick(mut commands: Commands) {
     commands
         .dialog()
-        .pick_multiple_directory_paths::<PrintDirectoryPath>();
+        .pick_multiple_directory_paths(PrintDirectoryPath);
 }
 
 fn directory_picked(mut ev_picked: MessageReader<DialogDirectoryPicked<PrintDirectoryPath>>) {

@@ -20,9 +20,7 @@ fn main() {
 struct PrintDirectoryPath;
 
 fn pick(mut commands: Commands) {
-    commands
-        .dialog()
-        .pick_directory_path::<PrintDirectoryPath>();
+    commands.dialog().pick_directory_path(PrintDirectoryPath);
 }
 
 fn directory_picked(mut ev_picked: MessageReader<DialogDirectoryPicked<PrintDirectoryPath>>) {
