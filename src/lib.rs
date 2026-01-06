@@ -2,7 +2,10 @@
 
 //! Bevy plugin that allows you to save and load files with file dialogs.
 //!
-//! In order to use it you need to add [`FileDialogPlugin`] to your [`App`] with
+//! This plugin contains two implementations of file dialog handlers.
+//! The first implementation, [`FileDialog`], uses traditional marker types to dispatch global file pick events per type.
+//!
+//! In order to use these type-scoped dialogue handlers you need to add [`FileDialogPlugin`] to your [`App`] with
 //! at least one or more calls to:
 //! - [`FileDialogPlugin::with_save_file::<T>`]
 //! - [`FileDialogPlugin::with_load_file::<T>`]
@@ -56,7 +59,13 @@
 //! [`FileDialog::pick_multiple_file_paths`] and
 //! [`EventReader<DialogFilePicked<T>>`]
 //!
-//! If you want to be compatible with wasm, do not use any of the `pick_` apis,
+//! The second file dialog handler implementation, [`EntityFileDialog`] uses an `EntityEvent`, [`EntityScopedDialogEvent`], to dispatch file dialog events to a specific entity.
+//! This handler does not require special initialization - any [`Observer`] system for [`EntityScopedDialogEvent`] will receive dispatched events normally.
+//!
+//! However, as these events must be scoped to a specific entity, the dialog must be initialized through an [`EntityCommands`] instance - see [`EntityFileDialogExt::with_dialog`] for details.
+//!
+//!
+//! For both implemnetations, if you want to be compatible with wasm, do not use any of the `pick_` apis,
 //! they are only for native platforms.
 
 use std::io;
@@ -109,9 +118,13 @@ impl<T> SaveContents for T where T: Send + Sync + 'static {}
 impl<T> LoadContents for T where T: Send + Sync + 'static {}
 
 impl FileDialogPlugin {
-    /// Create new file dialog plugin. Do not forget to call at least one
-    /// `with_save_file`, `with_load_file` or `with_pick_directory` on the plugin to allow you to
-    /// save/load files and pick directories.
+    /// Create new file dialog plugin.
+    ///
+    /// The [`EntityFileDialogExt`] extension methods under [`FileDialogEntityExt`] will be initialized by default.
+    ///
+    /// If instead, you wish to dispatch events targeting a marker type, you must call `with_save_file`, `with_load_file` or `with_pick_directory` on the plugin to initialize the type-scoped `FileDialog` methods.
+    ///
+    ///
     pub fn new() -> Self {
         Default::default()
     }
@@ -187,6 +200,15 @@ fn handle_dialog_result<E: Message, C: Message + Default>(
     }
 }
 
+fn handle_entity_scoped_dialog_result(
+    receiver: Res<StreamReceiver<EntityScopedDialogEvent>>,
+    mut commands: Commands,
+) {
+    for result in receiver.try_iter() {
+        commands.trigger(result);
+    }
+}
+
 /// Event that gets sent when file contents get saved to file system.
 #[derive(Message)]
 pub struct DialogFileSaved<T: SaveContents> {
@@ -243,12 +265,74 @@ impl<T: SaveContents> Default for DialogFileSaveCanceled<T> {
     }
 }
 
+///Singular `EntityEvent` that gets sent when `EntityFileDialog` file handling methods are invoked.
+#[derive(EntityEvent, Debug, Clone)]
+pub struct EntityScopedDialogEvent {
+    /// The entity that is the primary focus for this particular event
+    pub entity: Entity,
+    /// The result of the user interaction with the file dialog
+    pub result: EntityScopedDialogResult,
+}
+/// Enum modeling different entity-scoped file dialog events.
+#[derive(Debug, Clone)]
+pub enum EntityScopedDialogResult {
+    /// A file has been 'picked.' Does not exist on wasm32 builds.
+    #[cfg(not(target_arch = "wasm32"))]
+    Pick(FilePick),
+    /// A file has been saved.
+    Save(FileSavedResult),
+    /// A file has been loaded.
+    Load(FileLoaded),
+    /// The file dialog has been closed.
+    Canceled,
+}
+/// The selected file during an entity-scoped 'pick' operation.
+///
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Debug, Clone)]
+pub struct FilePick {
+    /// Path of picked file.
+    ///
+    /// Does not exist in wasm, you can use this on native platforms only.
+    pub path: std::path::PathBuf,
+}
+/// The result of an entity-scoped file save operation.
+#[derive(Debug, Clone)]
+pub struct FileSavedResult {
+    /// Name of saved file.
+    pub file_name: String,
+
+    /// Result of save file system operation.
+    pub result: Option<String>,
+    /// Path to saved file.
+    ///
+    /// Does not exist in wasm, you can use this on native platforms only.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub path: std::path::PathBuf,
+}
+
+/// The result of an entity-scoped file load operation.
+#[derive(Debug, Clone)]
+pub struct FileLoaded {
+    /// Name of loaded file.
+    pub file_name: String,
+
+    /// Byte contents of loaded file.
+    pub contents: Vec<u8>,
+
+    /// Path to loaded file.
+    ///
+    /// Does not exist in wasm, you can use this on native platforms only.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub path: std::path::PathBuf,
+}
+
 impl Plugin for FileDialogPlugin {
     fn build(&self, app: &mut App) {
-        assert!(
-            !self.0.is_empty(),
-            "File dialog not initialized, use at least one FileDialogPlugin::with_*"
-        );
+        let (tx, rx) = bounded::<EntityScopedDialogEvent>(1);
+        app.insert_resource(StreamSender(tx));
+        app.insert_resource(StreamReceiver(rx));
+        app.add_systems(First, handle_entity_scoped_dialog_result);
 
         for action in &self.0 {
             action(app);
@@ -428,6 +512,212 @@ impl FileDialog<'_, '_, '_> {
         });
     }
 }
+/// File dialog for saving/loading files for a specific entity. You can further customize what can be
+/// saved/loaded and the initial state of dialog with its functions.
+pub struct EntityFileDialog<'w, 'a> {
+    entity_commands: &'a mut EntityCommands<'w>,
+    dialog: AsyncFileDialog,
+}
+impl EntityFileDialog<'_, '_> {
+    /// Add file extension filter.
+    ///
+    /// Takes in the name of the filter, and list of extensions
+    ///
+    /// The name of the filter will be displayed on supported platforms:
+    ///   * Windows
+    ///   * Linux
+    ///
+    /// On platforms that don't support filter names, all filters will be merged into one filter
+    pub fn add_filter(mut self, name: impl Into<String>, extensions: &[impl ToString]) -> Self {
+        self.dialog = self.dialog.add_filter(name, extensions);
+        self
+    }
+
+    /// Set starting directory of the dialog. Supported platforms:
+    ///   * Linux ([GTK only](https://github.com/PolyMeilex/rfd/issues/42))
+    ///   * Windows
+    ///   * Mac
+    pub fn set_directory<P: AsRef<Path>>(mut self, path: P) -> Self {
+        self.dialog = self.dialog.set_directory(path);
+        self
+    }
+
+    /// Set starting file name of the dialog. Supported platforms:
+    ///  * Windows
+    ///  * Linux
+    ///  * Mac
+    pub fn set_file_name(mut self, file_name: impl Into<String>) -> Self {
+        self.dialog = self.dialog.set_file_name(file_name);
+        self
+    }
+
+    /// Set the title of the dialog. Supported platforms:
+    ///  * Windows
+    ///  * Linux
+    ///  * Mac (Only below version 10.11)
+    ///  * WASM32
+    pub fn set_title(mut self, title: impl Into<String>) -> Self {
+        self.dialog = self.dialog.set_title(title);
+        self
+    }
+
+    /// Open pick file dialog for multiple files and load contents for all
+    /// selected files. When file contents get loaded, a [`EntityScopedDialogEvent`] gets sent for each file.
+    /// You can get read these events using an [`On<EntityScopedDialogEvent>`] [`Observer`] system.
+    pub fn load_multiple_files(self) {
+        let entity = self.entity_commands.id();
+        self.entity_commands
+            .commands()
+            .queue(move |world: &mut World| {
+                let sender = world
+                    .get_resource::<StreamSender<EntityScopedDialogEvent>>()
+                    .expect("FileDialogPlugin not initialized")
+                    .0
+                    .clone();
+
+                let event_loop_proxy = world
+                    .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                    .map(|proxy| EventLoopProxy::clone(&**proxy));
+
+                AsyncComputeTaskPool::get()
+                    .spawn(async move {
+                        use EntityScopedDialogResult::*;
+
+                        let files = AsyncFileDialog::new().pick_files().await;
+                        let _wake_up = event_loop_proxy.as_ref().map(WakeUpOnDrop);
+
+                        let Some(files) = files else {
+                            sender
+                                .send(EntityScopedDialogEvent {
+                                    entity,
+                                    result: Canceled,
+                                })
+                                .unwrap();
+                            return;
+                        };
+
+                        for file in files {
+                            sender
+                                .send(EntityScopedDialogEvent {
+                                    entity,
+                                    result: Load(FileLoaded {
+                                        file_name: file.file_name(),
+                                        contents: file.read().await,
+                                        #[cfg(not(target_arch = "wasm32"))]
+                                        path: file.path().to_path_buf(),
+                                    }),
+                                })
+                                .unwrap();
+                        }
+                    })
+                    .detach();
+            });
+    }
+    /// Open pick file dialog and load its contents. When file contents get
+    /// loaded, the [`EntityScopedDialogEvent`] gets sent. You can get read this event
+    /// using an [`On<EntityScopedDialogEvent>`] [`Observer`] system.
+    pub fn load_file(self) {
+        let entity = self.entity_commands.id();
+        self.entity_commands
+            .commands()
+            .queue(move |world: &mut World| {
+                let sender = world
+                    .get_resource::<StreamSender<EntityScopedDialogEvent>>()
+                    .expect("FileDialogPlugin not initialized with 'with_load_file::<T>()'")
+                    .0
+                    .clone();
+
+                let event_loop_proxy = world
+                    .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                    .map(|proxy| EventLoopProxy::clone(&**proxy));
+
+                AsyncComputeTaskPool::get()
+                    .spawn(async move {
+                        use EntityScopedDialogResult::*;
+
+                        let file = self.dialog.pick_file().await;
+                        let _wake_up = event_loop_proxy.as_ref().map(WakeUpOnDrop);
+
+                        let Some(file) = file else {
+                            sender
+                                .send(EntityScopedDialogEvent {
+                                    entity,
+                                    result: Canceled,
+                                })
+                                .unwrap();
+                            return;
+                        };
+
+                        sender
+                            .send(EntityScopedDialogEvent {
+                                entity,
+                                result: Load(FileLoaded {
+                                    file_name: file.file_name(),
+                                    contents: file.read().await,
+                                    #[cfg(not(target_arch = "wasm32"))]
+                                    path: file.path().to_path_buf(),
+                                }),
+                            })
+                            .unwrap();
+                    })
+                    .detach();
+            });
+    }
+    /// Open save file dialog and save the `contents` to that file. When file
+    /// gets saved, the [`EntityScopedDialogEvent`] gets sent. You can get read this event
+    /// using an [`On<EntityScopedDialogEvent>`] [`Observer`] system.
+    pub fn save_file(self, contents: Vec<u8>) {
+        let entity = self.entity_commands.id();
+        self.entity_commands
+            .commands()
+            .queue(move |world: &mut World| {
+                let sender = world
+                    .get_resource::<StreamSender<EntityScopedDialogEvent>>()
+                    .expect("FileDialogPlugin not initialized")
+                    .0
+                    .clone();
+
+                let event_loop_proxy = world
+                    .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                    .map(|proxy| EventLoopProxy::clone(&**proxy));
+
+                AsyncComputeTaskPool::get()
+                    .spawn(async move {
+                        let file = self.dialog.save_file().await;
+                        let _wake_up = event_loop_proxy.as_ref().map(WakeUpOnDrop);
+                        use EntityScopedDialogResult::*;
+
+                        let Some(file) = file else {
+                            sender
+                                .send(EntityScopedDialogEvent {
+                                    entity,
+                                    result: Canceled,
+                                })
+                                .unwrap();
+                            return;
+                        };
+                        let op_result = file.write(&contents).await;
+                        let ret_result = match op_result {
+                            Ok(_) => None,
+                            Err(e) => Some(e.to_string()),
+                        };
+
+                        let event = EntityScopedDialogEvent {
+                            entity,
+                            result: Save(FileSavedResult {
+                                file_name: file.file_name(),
+                                result: ret_result,
+                                #[cfg(not(target_arch = "wasm32"))]
+                                path: file.path().to_path_buf(),
+                            }),
+                        };
+
+                        sender.send(event).unwrap();
+                    })
+                    .detach();
+            });
+    }
+}
 
 /// Extension trait for [`Commands`] that allow you to create dialogs.
 pub trait FileDialogExt<'w, 's> {
@@ -440,6 +730,19 @@ impl<'w, 's> FileDialogExt<'w, 's> for Commands<'w, 's> {
     fn dialog<'a>(&'a mut self) -> FileDialog<'w, 's, 'a> {
         FileDialog {
             commands: self,
+            dialog: AsyncFileDialog::new(),
+        }
+    }
+}
+/// Extension trait for [`EntityCommands`] that allows you to create entity-scoped dialogs.
+pub trait EntityFileDialogExt<'w> {
+    /// Create dialog for loading/saving files for a specific entity.
+    fn with_dialog<'a>(&'a mut self) -> EntityFileDialog<'w, 'a>;
+}
+impl<'w> EntityFileDialogExt<'w> for EntityCommands<'w> {
+    fn with_dialog<'a>(&'a mut self) -> EntityFileDialog<'w, 'a> {
+        EntityFileDialog {
+            entity_commands: self,
             dialog: AsyncFileDialog::new(),
         }
     }

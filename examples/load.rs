@@ -18,12 +18,17 @@ fn load(mut commands: Commands) {
     commands.dialog().load_file::<ByteLenContents>();
 }
 
-fn file_loaded(mut ev_loaded: MessageReader<DialogFileLoaded<ByteLenContents>>) {
+fn file_loaded(
+    mut ev_loaded: MessageReader<DialogFileLoaded<ByteLenContents>>,
+    mut ev_exit: MessageWriter<AppExit>,
+) {
     for ev in ev_loaded.read() {
         eprintln!(
             "Loaded file {} with size of {} bytes",
             ev.file_name,
             ev.contents.len()
         );
+        eprintln!("Successfully presented load file dialog, exiting app");
+        ev_exit.write_default();
     }
 }
