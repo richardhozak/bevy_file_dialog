@@ -9,7 +9,8 @@ use crossbeam_channel::bounded;
 use rfd::AsyncFileDialog;
 
 use crate::{
-    handle_dialog_result, DialogResult, FileDialog, FileDialogPlugin, StreamReceiver, StreamSender,
+    handle_dialog_result, DialogResult, EntityFileDialog, EntityScopedDialogEvent,
+    EntityScopedDialogResult, FileDialog, FileDialogPlugin, FilePick, StreamReceiver, StreamSender,
     WakeUpOnDrop,
 };
 
@@ -272,5 +273,206 @@ impl FileDialog<'_, '_, '_> {
                 })
                 .detach();
         });
+    }
+}
+impl EntityFileDialog<'_, '_> {
+    /// Open pick multiple files dialog and send
+    /// [`EntityScopedDialogEvent`] for each selected file path. You can get read these events
+    /// using an [`On<EntityScopedDialogEvent>`] [`Observer`] system.
+    ///
+    /// Does not exist in `wasm32`. If you want cross-platform solution, you
+    /// need to use [`EntityFileDialog::load_multiple_files`], which does picking and
+    /// loading in one step which is compatible with wasm.
+    pub fn pick_multiple_file_paths(self) {
+        let entity = self.entity_commands.id();
+        self.entity_commands
+            .commands()
+            .queue(move |world: &mut World| {
+                let sender = world
+                    .get_resource::<StreamSender<EntityScopedDialogEvent>>()
+                    .expect("FileDialogPlugin not initialized with 'with_pick_file::<T>()'")
+                    .0
+                    .clone();
+
+                let event_loop_proxy = world
+                    .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                    .map(|proxy| EventLoopProxy::clone(&**proxy));
+
+                AsyncComputeTaskPool::get()
+                    .spawn(async move {
+                        use EntityScopedDialogResult::*;
+                        let files = AsyncFileDialog::new().pick_files().await;
+                        let _wake_up = event_loop_proxy.as_ref().map(WakeUpOnDrop);
+
+                        let Some(files) = files else {
+                            sender
+                                .send(EntityScopedDialogEvent {
+                                    entity,
+                                    result: Canceled,
+                                })
+                                .unwrap();
+                            return;
+                        };
+
+                        for file in files {
+                            sender
+                                .send(EntityScopedDialogEvent {
+                                    entity,
+                                    result: Pick(FilePick {
+                                        path: file.path().to_path_buf(),
+                                    }),
+                                })
+                                .unwrap();
+                        }
+                    })
+                    .detach();
+            });
+    }
+    /// Open pick file dialog and send [`EntityScopedDialogEvent`]
+    /// event. You can get read this event using an [`On<EntityScopedDialogEvent>`] [`Observer`] system.
+    ///
+    /// Does not exist in `wasm32`. If you want cross-platform solution, you
+    /// need to use [`EntityFileDialog::load_file`], which does picking and
+    /// loading in one step which is compatible with wasm.
+    pub fn pick_file_path(self) {
+        let entity = self.entity_commands.id();
+        self.entity_commands
+            .commands()
+            .queue(move |world: &mut World| {
+                let sender = world
+                    .get_resource::<StreamSender<EntityScopedDialogEvent>>()
+                    .expect("FileDialogPlugin not initialized with 'with_pick_file::<T>()'")
+                    .0
+                    .clone();
+
+                let event_loop_proxy = world
+                    .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                    .map(|proxy| EventLoopProxy::clone(&**proxy));
+
+                AsyncComputeTaskPool::get()
+                    .spawn(async move {
+                        use EntityScopedDialogResult::*;
+                        let file = self.dialog.pick_file().await;
+                        let _wake_up = event_loop_proxy.as_ref().map(WakeUpOnDrop);
+
+                        let Some(file) = file else {
+                            sender
+                                .send(EntityScopedDialogEvent {
+                                    entity,
+                                    result: Canceled,
+                                })
+                                .unwrap();
+                            return;
+                        };
+
+                        sender
+                            .send(EntityScopedDialogEvent {
+                                entity,
+                                result: Pick(FilePick {
+                                    path: file.path().to_path_buf(),
+                                }),
+                            })
+                            .unwrap();
+                    })
+                    .detach();
+            });
+    }
+    /// Open pick multiple directories dialog and send
+    /// [`EntityScopedDialogEvent`] for each selected file path. You can get read these events
+    /// using an [`On<EntityScopedDialogEvent>`] [`Observer`] system.
+    ///
+    /// Does not exist in `wasm32`.
+    pub fn pick_multiple_directory_paths(self) {
+        let entity = self.entity_commands.id();
+        self.entity_commands
+            .commands()
+            .queue(move |world: &mut World| {
+                let sender = world
+                    .get_resource::<StreamSender<EntityScopedDialogEvent>>()
+                    .expect("FileDialogPlugin not initialized")
+                    .0
+                    .clone();
+
+                let event_loop_proxy = world
+                    .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                    .map(|proxy| EventLoopProxy::clone(&**proxy));
+
+                AsyncComputeTaskPool::get()
+                    .spawn(async move {
+                        use EntityScopedDialogResult::*;
+                        let files = AsyncFileDialog::new().pick_folders().await;
+                        let _wake_up = event_loop_proxy.as_ref().map(WakeUpOnDrop);
+
+                        let Some(files) = files else {
+                            sender
+                                .send(EntityScopedDialogEvent {
+                                    entity,
+                                    result: Canceled,
+                                })
+                                .unwrap();
+                            return;
+                        };
+
+                        for file in files {
+                            sender
+                                .send(EntityScopedDialogEvent {
+                                    entity,
+                                    result: Pick(FilePick {
+                                        path: file.path().to_path_buf(),
+                                    }),
+                                })
+                                .unwrap();
+                        }
+                    })
+                    .detach();
+            });
+    }
+    /// Open pick directory dialog and send
+    /// [`EntityScopedDialogEvent`] for the selected file path. You can get read these events
+    /// using an [`On<EntityScopedDialogEvent>`] [`Observer`] system.
+    ///
+    /// Does not exist in `wasm32`.
+    pub fn pick_directory_path(self) {
+        let entity = self.entity_commands.id();
+        self.entity_commands
+            .commands()
+            .queue(move |world: &mut World| {
+                let sender = world
+                    .get_resource::<StreamSender<EntityScopedDialogEvent>>()
+                    .expect("FileDialogPlugin not initialized")
+                    .0
+                    .clone();
+
+                let event_loop_proxy = world
+                    .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                    .map(|proxy| EventLoopProxy::clone(&**proxy));
+
+                AsyncComputeTaskPool::get()
+                    .spawn(async move {
+                        use EntityScopedDialogResult::*;
+                        let file = self.dialog.pick_folder().await;
+                        let _wake_up = event_loop_proxy.as_ref().map(WakeUpOnDrop);
+
+                        let Some(file) = file else {
+                            sender
+                                .send(EntityScopedDialogEvent {
+                                    entity,
+                                    result: Canceled,
+                                })
+                                .unwrap();
+                            return;
+                        };
+
+                        sender
+                            .send(EntityScopedDialogEvent {
+                                entity,
+                                result: Pick(FilePick {
+                                    path: file.path().to_path_buf(),
+                                }),
+                            })
+                            .unwrap();
+                    })
+                    .detach();
+            });
     }
 }
