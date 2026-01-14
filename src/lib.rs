@@ -67,7 +67,7 @@ use bevy_app::prelude::*;
 use bevy_derive::Deref;
 use bevy_ecs::prelude::*;
 use bevy_tasks::prelude::*;
-use bevy_winit::{EventLoopProxy, EventLoopProxyWrapper, WakeUp};
+use bevy_winit::{EventLoopProxy, EventLoopProxyWrapper, WinitUserEvent};
 use crossbeam_channel::{bounded, Receiver, Sender};
 use rfd::AsyncFileDialog;
 
@@ -318,7 +318,7 @@ impl FileDialog<'_, '_, '_> {
                 .clone();
 
             let event_loop_proxy = world
-                .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                .get_resource::<EventLoopProxyWrapper>()
                 .map(|proxy| EventLoopProxy::clone(&**proxy));
 
             AsyncComputeTaskPool::get()
@@ -357,7 +357,7 @@ impl FileDialog<'_, '_, '_> {
                 .clone();
 
             let event_loop_proxy = world
-                .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                .get_resource::<EventLoopProxyWrapper>()
                 .map(|proxy| EventLoopProxy::clone(&**proxy));
 
             AsyncComputeTaskPool::get()
@@ -398,7 +398,7 @@ impl FileDialog<'_, '_, '_> {
                 .clone();
 
             let event_loop_proxy = world
-                .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                .get_resource::<EventLoopProxyWrapper>()
                 .map(|proxy| EventLoopProxy::clone(&**proxy));
 
             AsyncComputeTaskPool::get()
@@ -447,10 +447,10 @@ impl<'w, 's> FileDialogExt<'w, 's> for Commands<'w, 's> {
 
 /// A struct to send a WakeUp event to winit when dropped (i.e., when the scope
 /// ends).
-struct WakeUpOnDrop<'a>(&'a EventLoopProxy<WakeUp>);
+struct WakeUpOnDrop<'a>(&'a EventLoopProxy<WinitUserEvent>);
 
 impl Drop for WakeUpOnDrop<'_> {
     fn drop(&mut self) {
-        self.0.send_event(WakeUp).unwrap();
+        self.0.send_event(WinitUserEvent::WakeUp).unwrap();
     }
 }

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
 use bevy_tasks::prelude::*;
-use bevy_winit::{EventLoopProxy, EventLoopProxyWrapper, WakeUp};
+use bevy_winit::{EventLoopProxy, EventLoopProxyWrapper};
 use crossbeam_channel::bounded;
 use rfd::AsyncFileDialog;
 
@@ -124,7 +124,7 @@ impl FileDialog<'_, '_, '_> {
                 .clone();
 
             let event_loop_proxy = world
-                .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                .get_resource::<EventLoopProxyWrapper>()
                 .map(|proxy| EventLoopProxy::clone(&**proxy));
 
             AsyncComputeTaskPool::get()
@@ -163,7 +163,7 @@ impl FileDialog<'_, '_, '_> {
                 .clone();
 
             let event_loop_proxy = world
-                .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                .get_resource::<EventLoopProxyWrapper>()
                 .map(|proxy| EventLoopProxy::clone(&**proxy));
 
             AsyncComputeTaskPool::get()
@@ -206,7 +206,7 @@ impl FileDialog<'_, '_, '_> {
                 .clone();
 
             let event_loop_proxy = world
-                .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                .get_resource::<EventLoopProxyWrapper>()
                 .map(|proxy| EventLoopProxy::clone(&**proxy));
 
             AsyncComputeTaskPool::get()
@@ -247,7 +247,7 @@ impl FileDialog<'_, '_, '_> {
                 .clone();
 
             let event_loop_proxy = world
-                .get_resource::<EventLoopProxyWrapper<WakeUp>>()
+                .get_resource::<EventLoopProxyWrapper>()
                 .map(|proxy| EventLoopProxy::clone(&**proxy));
 
             AsyncComputeTaskPool::get()
