@@ -43,13 +43,13 @@ fn dialog(mut commands: Commands, keys: Res<ButtonInput<KeyCode>>) {
                 .dialog()
                 .add_filter("Text", &["txt"])
                 .set_file_name("hello.txt")
-                .save_file::<TextFileContents>(b"hello".to_vec());
+                .save_file(b"hello".to_vec(), TextFileContents);
         } else if keys.just_pressed(KeyCode::KeyO) {
             // read contents from selected file
             commands
                 .dialog()
                 .add_filter("Text", &["txt"])
-                .load_file::<TextFileContents>();
+                .load_file(TextFileContents);
         }
     }
 }

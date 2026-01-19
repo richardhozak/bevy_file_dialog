@@ -20,12 +20,11 @@ fn main() {
         .run();
 }
 
+#[derive(Clone)]
 struct PrintFilePath;
 
 fn pick(mut commands: Commands) {
-    commands
-        .dialog()
-        .pick_multiple_file_paths::<PrintFilePath>();
+    commands.dialog().pick_multiple_file_paths(PrintFilePath);
 }
 
 fn file_picked(mut ev_picked: MessageReader<DialogFilePicked<PrintFilePath>>) {
